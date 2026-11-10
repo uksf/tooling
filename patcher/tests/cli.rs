@@ -36,7 +36,18 @@ fn p3d_reports_model_summary() {
         .args(["p3d", path.to_str().unwrap(), "plug.p3d"])
         .output()
         .unwrap();
+    let detail = Command::new(env!("CARGO_BIN_EXE_uksf-patcher"))
+        .args(["p3d", path.to_str().unwrap(), "plug.p3d", "geometry"])
+        .output()
+        .unwrap();
     fs::remove_file(path).unwrap();
+    assert!(detail.status.success());
+    let detail = String::from_utf8(detail.stdout).unwrap();
+    assert!(detail.contains("faces 12, face bytes 156, polygons unused 192/0, face area NaN"));
+    assert!(detail.contains("section 0..192 material -1 texture -1"));
+    assert!(detail.contains(
+        "selection component01: 12 faces, 8 vertices, 0 weights, sectional False, sections []"
+    ));
     assert!(result.status.success());
     let output = String::from_utf8(result.stdout).unwrap();
     assert!(output.contains("ODOL v75, 7 LODs, 53669 bytes, sha256 78b66729839290b52388c5bb14d6446b01a9a8417978488d4dd43751d9d272de, re-serialises identically: True"));
