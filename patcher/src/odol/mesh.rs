@@ -3,6 +3,7 @@ use super::io::{Blob, Reader};
 use super::material::Material;
 use super::write::Writer;
 
+#[derive(Clone)]
 pub struct Proxy {
     pub model: Vec<u8>,
     pub transform: [f32; 12],

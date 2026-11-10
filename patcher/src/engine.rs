@@ -3,6 +3,7 @@ use crate::{
     manifest::Manifest,
     mlod_ops, model_ops,
     pbo::{Addition, Pbo, normalise},
+    proxy_ops,
     state::sha256,
 };
 use serde_json::Value;
@@ -91,6 +92,7 @@ fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result
         }
         "set-skeleton-name" => model_ops::set_skeleton_name(data, op, label),
         "remove-degenerate-faces" => mlod_ops::remove_degenerate_faces(data, op, label),
+        "restore-lod-proxies" => proxy_ops::restore_lod_proxies(data, op, label),
         name if MODEL_OPS.contains(&name) => Err(format!("{label}: op not implemented: '{name}'")),
         _ => Err(format!(
             "{label}: unknown op '{name}' (known: replace-file, text-replace, {})",
