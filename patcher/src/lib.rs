@@ -9,5 +9,6 @@ pub mod mlod_ops;
 pub mod model_ops;
 pub mod p3d_info;
 pub mod proxy_ops;
+pub mod remap_ops;
 pub mod runner;
 pub mod state;
