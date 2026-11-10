@@ -1,7 +1,7 @@
 use crate::{
     file_ops,
     manifest::Manifest,
-    model_ops,
+    mlod_ops, model_ops,
     pbo::{Addition, Pbo, normalise},
     state::sha256,
 };
@@ -90,6 +90,7 @@ fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result
             .map_err(|_| format!("{label}: replace-file source '{source}' does not exist"))
         }
         "set-skeleton-name" => model_ops::set_skeleton_name(data, op, label),
+        "remove-degenerate-faces" => mlod_ops::remove_degenerate_faces(data, op, label),
         name if MODEL_OPS.contains(&name) => Err(format!("{label}: op not implemented: '{name}'")),
         _ => Err(format!(
             "{label}: unknown op '{name}' (known: replace-file, text-replace, {})",
