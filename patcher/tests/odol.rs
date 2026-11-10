@@ -30,3 +30,25 @@ fn rejects_encryption_and_truncated_headers() {
     data.truncate(10);
     assert_eq!(Header::parse(&data).unwrap_err(), "truncated ODOL header");
 }
+
+#[test]
+fn reads_skeleton_bone_names_and_parents() {
+    let mut data = b"ODOL".to_vec();
+    data.extend_from_slice(&73u32.to_le_bytes());
+    data.extend_from_slice(&0u32.to_le_bytes());
+    data.push(0);
+    data.extend_from_slice(&0u32.to_le_bytes());
+    data.extend_from_slice(&[0; 216]);
+    data.extend_from_slice(b"vehicle\0\x01\x02\0\0\0root\0\0turret\0root\0\0");
+    let header = Header::parse(&data).unwrap();
+    let skeleton = uksf_patcher::skeleton::Skeleton::parse(&data, &header).unwrap();
+    assert_eq!(skeleton.name, b"vehicle");
+    assert_eq!(
+        skeleton.bones,
+        [
+            (b"root".to_vec(), vec![]),
+            (b"turret".to_vec(), b"root".to_vec())
+        ]
+    );
+    assert_eq!(skeleton.end, data.len());
+}
