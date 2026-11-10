@@ -8,3 +8,4 @@ repository.workspace = true
 [dependencies]
 hemtt-lzo = { git = "https://github.com/BrettMayson/HEMTT", tag = "v1.23.1" }
 sha-1 = "0.10"
+sha2 = "0.10"
