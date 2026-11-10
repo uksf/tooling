@@ -110,6 +110,76 @@ fn verify_rejects_a_key_from_another_authority() {
 }
 
 #[test]
+fn verify_rejects_a_different_key_with_the_same_authority() {
+    let dir = scratch("impostor");
+    let trusted = Path::new(FIXTURES).join("uksf_sign_test.bikey");
+    assert!(
+        run(&dir, &["create-key", "uksf_sign_test"])
+            .status
+            .success()
+    );
+    assert!(
+        run(&dir, &["sign", "uksf_sign_test.biprivatekey", PBOS[0]])
+            .status
+            .success()
+    );
+    assert!(
+        run(&dir, &["verify", "uksf_sign_test.bikey", PBOS[0]])
+            .status
+            .success()
+    );
+
+    let output = run(&dir, &["verify", trusted.to_str().unwrap(), PBOS[0]]);
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("signed by a different key"));
+}
+
+#[test]
+fn verify_rejects_a_changed_pbo_signed_by_an_impostor_key() {
+    let dir = scratch("impostor-changed");
+    let trusted = Path::new(FIXTURES).join("uksf_sign_test.bikey");
+    let path = dir.join(PBOS[0]);
+    let mut bytes = fs::read(&path).unwrap();
+    let marker = bytes.windows(8).position(|w| w == b"hello %1").unwrap();
+    bytes[marker] = b'j';
+    fs::write(&path, bytes).unwrap();
+    assert!(
+        run(&dir, &["create-key", "uksf_sign_test"])
+            .status
+            .success()
+    );
+    assert!(
+        run(&dir, &["sign", "uksf_sign_test.biprivatekey", PBOS[0]])
+            .status
+            .success()
+    );
+
+    let output = run(&dir, &["verify", trusted.to_str().unwrap(), PBOS[0]]);
+
+    assert!(!output.status.success());
+}
+
+#[cfg(unix)]
+#[test]
+fn created_private_key_is_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = scratch("mode");
+    fs::write(dir.join("uksf_mode.biprivatekey"), b"old").unwrap();
+    fs::set_permissions(
+        dir.join("uksf_mode.biprivatekey"),
+        fs::Permissions::from_mode(0o644),
+    )
+    .unwrap();
+
+    assert!(run(&dir, &["create-key", "uksf_mode"]).status.success());
+
+    let mode = |name: &str| fs::metadata(dir.join(name)).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode("uksf_mode.biprivatekey"), 0o600);
+    assert_eq!(mode("uksf_mode.bikey") & 0o044, 0o044);
+}
+
+#[test]
 fn usage_error_exits_non_zero() {
     let output = run(Path::new(FIXTURES), &["sign"]);
 

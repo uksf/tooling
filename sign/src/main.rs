@@ -36,7 +36,7 @@ fn create_key(name: &str) -> Result<(), String> {
         BIPrivateKey::generate(1024, name).map_err(|e| format!("generate {name}: {e}"))?;
     let private_path = format!("{name}.biprivatekey");
     private
-        .write_danger(&mut create(&private_path)?)
+        .write_danger(&mut create_secret(&private_path)?)
         .map_err(|e| format!("{private_path}: {e}"))?;
     let public_path = format!("{name}.bikey");
     private
@@ -67,6 +67,16 @@ fn verify(key_path: &str, pbos: &[String]) -> Result<(), String> {
         let path = signature_path(pbo_path, key.authority())?;
         let signature = BISign::read(&mut open(&path.to_string_lossy())?)
             .map_err(|e| format!("{}: {e}", path.display()))?;
+        if signature.length() != key.length()
+            || signature.modulus() != key.modulus()
+            || signature.exponent() != key.exponent()
+        {
+            return Err(format!(
+                "{}: signed by a different key with authority {}",
+                path.display(),
+                key.authority()
+            ));
+        }
         key.verify(&mut pbo, &signature)
             .map_err(|e| format!("{pbo_path}: {e}"))?;
     }
@@ -91,4 +101,24 @@ fn open(path: &str) -> Result<File, String> {
 
 fn create(path: &str) -> Result<File, String> {
     File::create(path).map_err(|e| format!("{path}: {e}"))
+}
+
+#[cfg(unix)]
+fn create_secret(path: &str) -> Result<File, String> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(path)
+        .map_err(|e| format!("{path}: {e}"))?;
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))
+        .map_err(|e| format!("{path}: {e}"))?;
+    Ok(file)
+}
+
+#[cfg(not(unix))]
+fn create_secret(path: &str) -> Result<File, String> {
+    create(path)
 }
