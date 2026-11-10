@@ -1,29 +1,7 @@
-use crate::odol::Model;
+use crate::{lod_names::resolution, odol::Model};
 use serde_json::Value;
 use std::collections::HashSet;
 
-fn lod_resolution(name: &str) -> Result<f32, String> {
-    match name.to_ascii_lowercase().as_str() {
-        "geometry" => Ok(1e13),
-        "geometrysimple" => Ok(2e13),
-        "geometryphysold" => Ok(3e13),
-        "geometryphys" => Ok(4e13),
-        "viewpilot" => Ok(1100.0),
-        "memory" => Ok(1e15),
-        "landcontact" => Ok(2e15),
-        "roadway" => Ok(3e15),
-        "paths" => Ok(4e15),
-        "hitpoints" => Ok(5e15),
-        "geometryview" => Ok(6e15),
-        "geometryfire" => Ok(7e15),
-        "viewgeometrycargo" => Ok(8e15),
-        "viewgeometrypilot" => Ok(1.3e16),
-        "viewgeometrygunner" => Ok(1.5e16),
-        _ => name
-            .parse::<f32>()
-            .map_err(|_| format!("unknown LOD name '{name}'")),
-    }
-}
 pub fn remove_component(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String> {
     let run = || -> Result<Vec<u8>, String> {
         let mut model = Model::parse(data)?;
@@ -34,7 +12,7 @@ pub fn remove_component(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
             .get("lod")
             .and_then(Value::as_str)
             .ok_or("op is missing string \"lod\"")?;
-        let wanted = lod_resolution(name)?;
+        let wanted = resolution(name)?;
         let matches: Vec<_> = model
             .lods
             .iter()

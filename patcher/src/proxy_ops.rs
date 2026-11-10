@@ -1,4 +1,7 @@
-use crate::odol::{Lod, Model, Proxy};
+use crate::{
+    lod_names::resolution,
+    odol::{Lod, Model, Proxy},
+};
 use serde_json::Value;
 
 fn string<'a>(op: &'a Value, key: &str) -> Result<&'a str, String> {
@@ -10,9 +13,7 @@ fn same(a: &[u8], b: &[u8]) -> bool {
     a.eq_ignore_ascii_case(b)
 }
 fn index(model: &Model, name: &str) -> Result<usize, String> {
-    let n = name
-        .parse::<f32>()
-        .map_err(|_| format!("unknown LOD name '{name}'"))?;
+    let n = resolution(name)?;
     let matches: Vec<_> = model
         .lods
         .iter()

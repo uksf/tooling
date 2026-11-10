@@ -1,6 +1,7 @@
 pub mod bone_ops;
 pub mod component_ops;
 pub mod file_ops;
+pub mod lod_names;
 pub mod odol;
 pub mod pbo;
 pub mod skeleton;
@@ -8,6 +9,7 @@ pub mod skeleton;
 pub mod engine;
 pub mod manifest;
 pub mod mlod_ops;
+mod mlod_tags;
 pub mod model_ops;
 pub mod p3d_info;
 pub mod proxy_ops;

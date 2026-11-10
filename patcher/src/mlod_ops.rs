@@ -1,3 +1,4 @@
+use crate::lod_names::resolution;
 use serde_json::Value;
 
 struct Reader<'a> {
@@ -68,29 +69,6 @@ fn area(points: &[[f32; 3]], face: &[u8], count: usize) -> Result<f64, String> {
     }
     Ok((normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]).sqrt() / 2.0)
 }
-fn resolution(name: &str) -> Result<f32, String> {
-    let value = match name.to_ascii_lowercase().as_str() {
-        "geometry" => 1e13,
-        "geometrysimple" => 2e13,
-        "geometryphysold" => 3e13,
-        "geometryphys" => 4e13,
-        "viewpilot" => 1100.0,
-        "memory" => 1e15,
-        "landcontact" => 2e15,
-        "roadway" => 3e15,
-        "paths" => 4e15,
-        "hitpoints" => 5e15,
-        "geometryview" => 6e15,
-        "geometryfire" => 7e15,
-        "viewgeometrycargo" => 8e15,
-        "viewgeometrypilot" => 1.3e16,
-        "viewgeometrygunner" => 1.5e16,
-        _ => name
-            .parse::<f32>()
-            .map_err(|_| format!("unknown LOD name '{name}'"))?,
-    };
-    Ok(value)
-}
 fn lod(
     r: &mut Reader<'_>,
     min: f64,
@@ -141,6 +119,7 @@ fn lod(
         let name = r.string()?;
         let size = r.count()?;
         let data = r.take(size)?;
+        crate::mlod_tags::validate(name, data, np, &counts)?;
         let end = name == b"#EndOfFile#";
         tags.push((name, data));
         if end {
@@ -188,7 +167,10 @@ fn lod(
             if offset != data.len() {
                 return Err("invalid UV tagg size".into());
             }
-        } else if !name.starts_with(b"#") || name == b"#Selected#" || name == b"#Lock#" {
+        } else if !matches!(
+            name,
+            b"#SharpEdges#" | b"#Property#" | b"#Mass#" | b"#EndOfFile#"
+        ) {
             if data.len() != np + nf {
                 return Err("invalid selection tagg size".into());
             }
