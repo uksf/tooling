@@ -8,9 +8,9 @@ use std::collections::HashSet;
 pub(crate) fn grow(model: &mut Model, i: usize) {
     let l = &mut model.lods[i];
     for p in &l.vertices {
-        for k in 0..3 {
-            l.bounds_min[k] = l.bounds_min[k].min(p[k]);
-            l.bounds_max[k] = l.bounds_max[k].max(p[k]);
+        for (k, &value) in p.iter().enumerate() {
+            l.bounds_min[k] = l.bounds_min[k].min(value);
+            l.bounds_max[k] = l.bounds_max[k].max(value);
         }
         let d = [
             p[0] - l.bounds_center[0],
@@ -77,8 +77,8 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
                         .any(|b| n.name.eq_ignore_ascii_case(b.as_bytes()))
                 }) && frame.along(pos) > cut
                 {
-                    for k in 0..3 {
-                        proxy.transform[9 + k] += shift[k];
+                    for (k, value) in shift.iter().enumerate() {
+                        proxy.transform[9 + k] += value;
                     }
                 }
             }

@@ -59,7 +59,8 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
     if origin.len() > u16::MAX as usize {
         return Err("shadow volume overflows the 16-bit neighbour index".into());
     }
-    let mut edges: HashMap<([u32; 3], [u32; 3]), Vec<(usize, usize)>> = HashMap::new();
+    type Edge = ([u32; 3], [u32; 3]);
+    let mut edges: HashMap<Edge, Vec<(usize, usize)>> = HashMap::new();
     for (f, face) in source.faces.iter().enumerate() {
         for k in 0..3 {
             let a = key(source.vertices[face[k] as usize]);
