@@ -49,6 +49,10 @@ pub fn append_memory(
     if lod.uv.iter().any(|u| u.fill == 0) {
         return Err("memory LOD has per-vertex UV data, which memory edits do not support".into());
     }
+    let old_size = lod.vertices_origin.origin.len()
+        + lod.normals_origin.origin.len()
+        + lod.clip_origin.origin.len()
+        + lod.bones_origin.origin.len();
     let old = lod.vertices.len();
     let mut vertices = Vec::with_capacity((old + 1) * 12);
     for p in lod.vertices.iter().chain(std::iter::once(&position)) {
@@ -75,6 +79,12 @@ pub fn append_memory(
     lod.normals_origin = condensed(&normals, 4)?;
     lod.clip_origin = condensed(&clips, 4)?;
     lod.bones_origin = array(&bones, old + 1)?;
+    let new_size = lod.vertices_origin.origin.len()
+        + lod.normals_origin.origin.len()
+        + lod.clip_origin.origin.len()
+        + lod.bones_origin.origin.len();
+    lod.rest_size = u32::try_from(i64::from(lod.rest_size) + new_size as i64 - old_size as i64)
+        .map_err(|_| "rest size overflow")?;
     lod.vertex_count = u32::try_from(old + 1).map_err(|_| "vertex count overflow")?;
     for uv in &mut lod.uv {
         uv.vertices = lod.vertex_count;
