@@ -154,7 +154,16 @@ pub fn load(data: &[u8], op: &Value, frame: &Frame) -> Result<Mesh, String> {
     let right = up.cross(fwd);
     let target_up = (y - dir * y.dot(dir)).unit();
     let target_right = target_up.cross(dir);
-    let rotate = |v: V| target_right * v.dot(right) + target_up * v.dot(up) + dir * v.dot(fwd);
+    let rotate = |v: V| {
+        let x = v.dot(right);
+        let y = v.dot(up);
+        let z = v.dot(fwd);
+        V(
+            z.mul_add(dir.0, y.mul_add(target_up.0, x * target_right.0)),
+            z.mul_add(dir.1, y.mul_add(target_up.1, x * target_right.1)),
+            z.mul_add(dir.2, y.mul_add(target_up.2, x * target_right.2)),
+        )
+    };
     let scale = axis_common::number(op, "scale")?;
     let attach = target_origin + dir * axis_common::number(op, "attachAlong")?;
     let loops = op
