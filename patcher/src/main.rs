@@ -2,7 +2,7 @@ use sha2::{Digest, Sha256};
 use std::{env, fs, process::ExitCode};
 use uksf_patcher::pbo::Pbo;
 
-const USAGE: &str = "uksf-patcher apply  --addons <dir> --patches <dir> --state <dir> [--dry-run]\nuksf-patcher verify --addons <dir> --patches <dir> --state <dir>\nuksf-patcher inspect <pbo> [filter]\nuksf-patcher hash <pbo> [path-in-pbo]\nuksf-patcher p3d <pbo> <path-in-pbo> [lod]";
+const USAGE: &str = "uksf-patcher apply  --addons <dir> --patches <dir> --state <dir> [--dry-run]\nuksf-patcher verify --addons <dir> --patches <dir> --state <dir>\nuksf-patcher inspect <pbo> [filter]\nuksf-patcher hash <pbo> [path-in-pbo]\nuksf-patcher p3d roundtrip <pbo-or-p3d>";
 
 fn run(args: &[String]) -> Result<u8, String> {
     match args {
@@ -47,6 +47,7 @@ fn run(args: &[String]) -> Result<u8, String> {
             }
             Ok(0)
         }
+        [command, mode, path] if command == "p3d" && mode == "roundtrip" => roundtrip(path),
         _ => {
             eprintln!("{USAGE}");
             Ok(2)
@@ -56,6 +57,73 @@ fn run(args: &[String]) -> Result<u8, String> {
 
 fn read_pbo(path: &str) -> Result<Pbo, String> {
     Pbo::parse(fs::read(path).map_err(|e| format!("{path}: {e}"))?)
+}
+
+fn roundtrip(path: &str) -> Result<u8, String> {
+    let bytes = fs::read(path).map_err(|e| format!("{path}: {e}"))?;
+    let lower = path.to_ascii_lowercase();
+    if lower.ends_with(".p3d") || bytes.starts_with(b"ODOL") || bytes.starts_with(b"MLOD") {
+        let identical = check_p3d(path, &bytes) == Outcome::Identical;
+        println!("{path}: 1 p3ds, {} identical", u8::from(identical));
+        return Ok(u8::from(!identical));
+    }
+    let pbo = Pbo::parse(bytes).map_err(|e| format!("{path}: {e}"))?;
+    let mut total = 0;
+    let mut identical = 0;
+    let mut not_odol = 0;
+    let mut unreadable = 0;
+    for (index, entry) in pbo.entries.iter().enumerate() {
+        if entry.name.len() < 4 || !entry.name[entry.name.len() - 4..].eq_ignore_ascii_case(b".p3d")
+        {
+            continue;
+        }
+        total += 1;
+        let name = String::from_utf8_lossy(&entry.name);
+        let label = format!("{path}:{name}");
+        match pbo.data(index) {
+            Ok(data) => match check_p3d(&label, &data) {
+                Outcome::Identical => identical += 1,
+                Outcome::NotOdol => not_odol += 1,
+                Outcome::Mismatch(_) | Outcome::Failed => {}
+            },
+            Err(error) => {
+                unreadable += 1;
+                println!("{label}: {error}");
+            }
+        }
+    }
+    println!(
+        "{path}: {total} p3ds, {identical} identical, {not_odol} not binarised, {unreadable} unreadable"
+    );
+    Ok(u8::from(identical + not_odol != total))
+}
+
+#[derive(PartialEq)]
+enum Outcome {
+    Identical,
+    Mismatch(usize),
+    NotOdol,
+    Failed,
+}
+
+fn check_p3d(label: &str, bytes: &[u8]) -> Outcome {
+    match uksf_patcher::odol::Model::parse(bytes).and_then(|model| model.write()) {
+        Ok(written) => match uksf_patcher::odol::first_mismatch(bytes, &written) {
+            None => Outcome::Identical,
+            Some(offset) => {
+                println!("{label}: mismatch at {offset}");
+                Outcome::Mismatch(offset)
+            }
+        },
+        Err(error) if error == "not a binarised (ODOL) P3D" => {
+            println!("{label}: {error}");
+            Outcome::NotOdol
+        }
+        Err(error) => {
+            println!("{label}: {error}");
+            Outcome::Failed
+        }
+    }
 }
 
 fn main() -> ExitCode {
