@@ -7,6 +7,7 @@ mod lzo;
 mod material;
 mod mesh;
 mod skeleton_data;
+pub mod strip;
 mod uv;
 mod write;
 

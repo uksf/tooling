@@ -94,6 +94,7 @@ fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result
         "remove-degenerate-faces" => mlod_ops::remove_degenerate_faces(data, op, label),
         "restore-lod-proxies" => proxy_ops::restore_lod_proxies(data, op, label),
         "remap-proxies" => remap_ops::remap_proxies(data, op, label),
+        "strip-animations" => crate::odol::strip::strip_animations(data, op, label),
         name if MODEL_OPS.contains(&name) => Err(format!("{label}: op not implemented: '{name}'")),
         _ => Err(format!(
             "{label}: unknown op '{name}' (known: replace-file, text-replace, {})",
