@@ -90,6 +90,7 @@ fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result
             )
             .map_err(|_| format!("{label}: replace-file source '{source}' does not exist"))
         }
+        "rebuild-shadow-volume" => crate::shadow_ops::rebuild(data, op, label),
         "stretch-along-axis" => crate::stretch_ops::stretch(data, op, label),
         "remove-faces" => crate::face_ops::remove_faces(data, op, label),
         "split-memory-point" => crate::memory_ops::split_memory_point(data, op, label),

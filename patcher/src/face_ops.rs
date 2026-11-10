@@ -47,7 +47,7 @@ fn parts(lod: &Lod, bound: &[bool]) -> Vec<Vec<usize>> {
         .map(|i| groups[&root(&mut parent, i)].clone())
         .collect()
 }
-fn ranges(lod: &Lod) -> Result<Vec<(usize, usize)>, String> {
+pub(crate) fn ranges(lod: &Lod) -> Result<Vec<(usize, usize)>, String> {
     let mut offsets = vec![0i32];
     for face in &lod.faces {
         offsets.push(offsets.last().unwrap() + 4 + 4 * face.len() as i32);

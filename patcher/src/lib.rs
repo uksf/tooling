@@ -6,6 +6,7 @@ pub mod file_ops;
 pub mod lod_names;
 pub mod odol;
 pub mod pbo;
+pub mod shadow_ops;
 pub mod skeleton;
 
 pub mod engine;

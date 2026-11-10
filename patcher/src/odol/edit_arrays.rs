@@ -40,6 +40,61 @@ fn condensed(raw: &[u8], width: usize) -> Result<Blob, String> {
     Ok(Blob { origin: v })
 }
 
+pub fn shadow_arrays(source: &Lod, volume: &mut Lod, origin: &[usize]) -> Result<(), String> {
+    let (_, normals) = Reader::new(&source.normals_origin.origin).condensed(4)?;
+    let (_, bones) = Reader::new(&source.bones_origin.origin).packed_array(12)?;
+    let (_, source_st) = Reader::new(&source.st_origin.origin).packed_array(8)?;
+    let (_, volume_st) = Reader::new(&volume.st_origin.origin).packed_array(8)?;
+    if !source_st.is_empty() || !volume_st.is_empty() {
+        return Err("a LOD has tangents".into());
+    }
+    let vertices: Vec<_> = origin.iter().map(|&i| source.vertices[i]).collect();
+    set_vertices(volume, vertices)?;
+    let old = volume.normals_origin.origin.len()
+        + volume.clip_origin.origin.len()
+        + volume.bones_origin.origin.len()
+        + volume.neighbors_origin.origin.len();
+    let normals_new: Vec<_> = origin
+        .iter()
+        .flat_map(|&i| normals[i * 4..i * 4 + 4].iter().copied())
+        .collect();
+    let clips: Vec<_> = origin
+        .iter()
+        .flat_map(|&i| source.clip[i].to_le_bytes())
+        .collect();
+    volume.normals_origin = condensed(&normals_new, 4)?;
+    volume.clip_origin = condensed(&clips, 4)?;
+    let mut neighbours = Vec::new();
+    if !bones.is_empty() {
+        let new_bones: Vec<_> = origin
+            .iter()
+            .flat_map(|&i| bones[i * 12..i * 12 + 12].iter().copied())
+            .collect();
+        volume.bones_origin = array(&new_bones, origin.len())?;
+        for f in 0..origin.len() / 3 {
+            for k in 0..3 {
+                for n in [(k + 1) % 3, (k + 2) % 3] {
+                    let corner = f * 3 + n;
+                    neighbours.extend((corner as u16).to_le_bytes());
+                    neighbours.extend([0, 0]);
+                    neighbours
+                        .extend_from_slice(&bones[origin[corner] * 12..origin[corner] * 12 + 12]);
+                }
+            }
+        }
+    }
+    volume.neighbors_origin = array(&neighbours, neighbours.len() / 32)?;
+    let new = volume.normals_origin.origin.len()
+        + volume.clip_origin.origin.len()
+        + volume.bones_origin.origin.len()
+        + volume.neighbors_origin.origin.len();
+    volume.rest_size = u32::try_from(i64::from(volume.rest_size) + new as i64 - old as i64)
+        .map_err(|_| "rest size overflow")?;
+    volume.vertex_count = u32::try_from(origin.len()).map_err(|_| "too many vertices")?;
+    volume.uv[0].vertices = volume.vertex_count;
+    Ok(())
+}
+
 pub fn set_vertices(lod: &mut Lod, vertices: Vec<[f32; 3]>) -> Result<(), String> {
     let raw: Vec<u8> = vertices
         .iter()

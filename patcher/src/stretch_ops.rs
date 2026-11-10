@@ -5,7 +5,7 @@ use crate::{
 use serde_json::Value;
 use std::collections::HashSet;
 
-fn grow(model: &mut Model, i: usize) {
+pub(crate) fn grow(model: &mut Model, i: usize) {
     let l = &mut model.lods[i];
     for p in &l.vertices {
         for k in 0..3 {
