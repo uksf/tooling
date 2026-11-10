@@ -1,11 +1,20 @@
 use sha2::{Digest, Sha256};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 use std::{env, fs, process::ExitCode};
-use uksf_patcher::pbo::Pbo;
+use uksf_patcher::{
+    pbo::Pbo,
+    runner::{Runner, absolute},
+    state::Store,
+};
 
-const USAGE: &str = "uksf-patcher apply  --addons <dir> --patches <dir> --state <dir> [--dry-run]\nuksf-patcher verify --addons <dir> --patches <dir> --state <dir>\nuksf-patcher inspect <pbo> [filter]\nuksf-patcher hash <pbo> [path-in-pbo]\nuksf-patcher p3d roundtrip <pbo-or-p3d>";
+const USAGE: &str = "uksf-patcher apply  --addons <dir> --patches <dir> --state <dir> [--dry-run]\nuksf-patcher verify --addons <dir> --patches <dir> --state <dir>\nuksf-patcher inspect <pbo> [filter]\nuksf-patcher hash <pbo> [path-in-pbo]\nuksf-patcher p3d <pbo> <path-in-pbo> [lod]";
 
 fn run(args: &[String]) -> Result<u8, String> {
     match args {
+        [command, rest @ ..] if command == "apply" || command == "verify" => patcher(command, rest),
         [command, path] if command == "hash" => {
             let bytes = fs::read(path).map_err(|e| format!("{path}: {e}"))?;
             println!("{:x}", Sha256::digest(bytes));
@@ -48,10 +57,70 @@ fn run(args: &[String]) -> Result<u8, String> {
             Ok(0)
         }
         [command, mode, path] if command == "p3d" && mode == "roundtrip" => roundtrip(path),
+        [command, path, asset] if command == "p3d" => {
+            uksf_patcher::p3d_info::run(path, asset, None)
+        }
+        [command, path, asset, lod] if command == "p3d" => {
+            uksf_patcher::p3d_info::run(path, asset, Some(lod))
+        }
         _ => {
             eprintln!("{USAGE}");
             Ok(2)
         }
+    }
+}
+
+fn patcher(command: &str, args: &[String]) -> Result<u8, String> {
+    let mut options = HashMap::new();
+    let mut i = 0;
+    while i < args.len() {
+        let key = args[i]
+            .strip_prefix("--")
+            .ok_or_else(|| format!("unexpected argument '{}'", args[i]))?;
+        if key == "dry-run" {
+            options.insert(key, None);
+            i += 1;
+            continue;
+        }
+        i += 1;
+        let value = args
+            .get(i)
+            .ok_or_else(|| format!("--{key} needs a value"))?;
+        options.insert(key, Some(value));
+        i += 1;
+    }
+    let get = |key| {
+        options
+            .get(key)
+            .and_then(|v| *v)
+            .map(PathBuf::from)
+            .ok_or("--addons, --patches and --state are required".to_owned())
+    };
+    let addons = get("addons")?;
+    let patches = get("patches")?;
+    let state = get("state")?;
+    let mod_dir = absolute(&addons.join(".."))?;
+    let state_abs = absolute(Path::new(&state))?;
+    let mod_fold = mod_dir.to_string_lossy().to_lowercase().replace('/', "\\");
+    let state_fold = state_abs
+        .to_string_lossy()
+        .to_lowercase()
+        .replace('/', "\\");
+    if state_fold == mod_fold || state_fold.starts_with(&(mod_fold + "\\")) {
+        return Err(
+            "--state must be outside the mod folder, or the pristine backups ship with the mod"
+                .into(),
+        );
+    }
+    let runner = Runner {
+        addons,
+        patches,
+        store: Store { dir: state },
+    };
+    if command == "verify" {
+        runner.verify()
+    } else {
+        runner.apply(options.contains_key("dry-run"))
     }
 }
 

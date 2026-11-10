@@ -49,7 +49,7 @@ fn word(bytes: &[u8], pos: usize) -> Result<u32, String> {
     ))
 }
 
-fn normalise(bytes: &[u8]) -> Vec<u8> {
+pub fn normalise(bytes: &[u8]) -> Vec<u8> {
     bytes
         .iter()
         .skip_while(|b| **b == 92 || **b == b'/')
@@ -148,6 +148,24 @@ impl Pbo {
                 "{n} entries are named '{}'",
                 String::from_utf8_lossy(path)
             )),
+        }
+    }
+
+    pub fn entry_name(&self, path: &[u8]) -> Vec<u8> {
+        let name: Vec<u8> = path
+            .iter()
+            .skip_while(|b| **b == b'\\' || **b == b'/')
+            .map(|b| if *b == b'/' { b'\\' } else { *b })
+            .collect();
+        let prefix = normalise(&self.prefix);
+        let normal = normalise(&name);
+        if !prefix.is_empty()
+            && normal.starts_with(&prefix)
+            && normal.get(prefix.len()) == Some(&b'\\')
+        {
+            name[prefix.len() + 1..].to_vec()
+        } else {
+            name
         }
     }
 
