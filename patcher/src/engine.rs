@@ -1,5 +1,5 @@
 use crate::{
-    file_ops,
+    bone_ops, file_ops,
     manifest::Manifest,
     mlod_ops, model_ops,
     pbo::{Addition, Pbo, normalise},
@@ -91,6 +91,7 @@ fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result
             .map_err(|_| format!("{label}: replace-file source '{source}' does not exist"))
         }
         "set-skeleton-name" => model_ops::set_skeleton_name(data, op, label),
+        "set-bone-parent" => bone_ops::set_bone_parent(data, op, label),
         "remove-degenerate-faces" => mlod_ops::remove_degenerate_faces(data, op, label),
         "restore-lod-proxies" => proxy_ops::restore_lod_proxies(data, op, label),
         "remap-proxies" => remap_ops::remap_proxies(data, op, label),
