@@ -8,6 +8,7 @@ pub mod skeleton;
 
 pub mod engine;
 pub mod manifest;
+pub mod memory_ops;
 pub mod mlod_ops;
 mod mlod_tags;
 pub mod model_ops;

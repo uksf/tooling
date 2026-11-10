@@ -1,5 +1,7 @@
 mod anim;
+mod compress;
 mod decode;
+pub(crate) mod edit_arrays;
 mod info;
 mod io;
 mod lod;
