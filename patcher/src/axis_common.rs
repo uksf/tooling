@@ -60,6 +60,15 @@ impl Frame {
             direction: [v[3] / length, v[4] / length, v[5] / length],
         })
     }
+    pub fn radius(&self, p: [f32; 3]) -> f32 {
+        let along = self.along(p);
+        let v = [
+            p[0] - self.origin[0] - along * self.direction[0],
+            p[1] - self.origin[1] - along * self.direction[1],
+            p[2] - self.origin[2] - along * self.direction[2],
+        ];
+        (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt()
+    }
     pub fn along(&self, p: [f32; 3]) -> f32 {
         (p[0] - self.origin[0]) * self.direction[0]
             + (p[1] - self.origin[1]) * self.direction[1]

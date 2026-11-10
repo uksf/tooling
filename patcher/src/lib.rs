@@ -19,3 +19,4 @@ pub mod proxy_ops;
 pub mod remap_ops;
 pub mod runner;
 pub mod state;
+pub mod stretch_ops;

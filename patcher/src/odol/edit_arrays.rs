@@ -40,6 +40,22 @@ fn condensed(raw: &[u8], width: usize) -> Result<Blob, String> {
     Ok(Blob { origin: v })
 }
 
+pub fn set_vertices(lod: &mut Lod, vertices: Vec<[f32; 3]>) -> Result<(), String> {
+    let raw: Vec<u8> = vertices
+        .iter()
+        .flatten()
+        .flat_map(|v| v.to_le_bytes())
+        .collect();
+    let old = lod.vertices_origin.origin.len();
+    lod.vertices_origin = array(&raw, vertices.len())?;
+    lod.rest_size = u32::try_from(
+        i64::from(lod.rest_size) + lod.vertices_origin.origin.len() as i64 - old as i64,
+    )
+    .map_err(|_| "rest size overflow")?;
+    lod.vertices = vertices;
+    Ok(())
+}
+
 pub fn set_faces(selection: &mut super::Selection, mut faces: Vec<i32>) -> Result<(), String> {
     faces.sort_unstable();
     let raw: Vec<u8> = faces.iter().flat_map(|f| f.to_le_bytes()).collect();
