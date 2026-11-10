@@ -60,11 +60,10 @@ fn area(points: &[[f32; 3]], face: &[u8], count: usize) -> Result<f64, String> {
         let b = points
             .get(word(&face[4 + j * 16..8 + j * 16]))
             .ok_or("invalid point index")?;
-        for axis in 0..3 {
+        for (axis, value) in normal.iter_mut().enumerate() {
             let x = (axis + 1) % 3;
             let y = (axis + 2) % 3;
-            normal[axis] +=
-                (f64::from(a[x]) - f64::from(b[x])) * (f64::from(a[y]) + f64::from(b[y]));
+            *value += (f64::from(a[x]) - f64::from(b[x])) * (f64::from(a[y]) + f64::from(b[y]));
         }
     }
     Ok((normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]).sqrt() / 2.0)
@@ -107,7 +106,9 @@ fn lod(
     r.take(4)?;
     let raw_points = r.take(np.checked_mul(16).ok_or("MLOD overflow")?)?;
     let points: Vec<[f32; 3]> = raw_points
-        .chunks_exact(16)
+        .as_chunks::<16>()
+        .0
+        .iter()
         .map(|p| [number(&p[0..4]), number(&p[4..8]), number(&p[8..12])])
         .collect();
     r.take(nn.checked_mul(12).ok_or("MLOD overflow")?)?;

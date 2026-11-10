@@ -72,8 +72,8 @@ fn u32put(out: &mut Vec<u8>, n: u32) {
 }
 fn face(out: &mut Vec<u8>, indexes: [u32; 3]) {
     u32put(out, 3);
-    for i in 0..4 {
-        u32put(out, if i < 3 { indexes[i] } else { 0 });
+    for index in indexes.into_iter().chain([0]) {
+        u32put(out, index);
         out.extend_from_slice(&[0; 12]);
     }
     u32put(out, 0);
