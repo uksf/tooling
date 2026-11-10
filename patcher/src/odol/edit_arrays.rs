@@ -3,7 +3,7 @@ use super::{
     io::{Blob, Reader},
 };
 
-fn payload(raw: &[u8]) -> Vec<u8> {
+pub(super) fn payload(raw: &[u8]) -> Vec<u8> {
     if raw.is_empty() {
         Vec::new()
     } else if raw.len() < 1024 {
@@ -16,7 +16,7 @@ fn payload(raw: &[u8]) -> Vec<u8> {
         v
     }
 }
-fn array(raw: &[u8], count: usize) -> Result<Blob, String> {
+pub(super) fn array(raw: &[u8], count: usize) -> Result<Blob, String> {
     let mut v = i32::try_from(count)
         .map_err(|_| "array too large")?
         .to_le_bytes()
@@ -24,7 +24,7 @@ fn array(raw: &[u8], count: usize) -> Result<Blob, String> {
     v.extend(payload(raw));
     Ok(Blob { origin: v })
 }
-fn condensed(raw: &[u8], width: usize) -> Result<Blob, String> {
+pub(super) fn condensed(raw: &[u8], width: usize) -> Result<Blob, String> {
     let count = raw.len() / width;
     let mut v = i32::try_from(count)
         .map_err(|_| "array too large")?

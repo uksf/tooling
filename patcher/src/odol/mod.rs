@@ -8,6 +8,7 @@ mod lod;
 mod lzo;
 mod material;
 mod mesh;
+pub(crate) mod mesh_arrays;
 mod skeleton_data;
 pub mod strip;
 mod uv;

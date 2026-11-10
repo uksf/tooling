@@ -90,6 +90,12 @@ fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result
             )
             .map_err(|_| format!("{label}: replace-file source '{source}' does not exist"))
         }
+        "add-mesh" => crate::mesh_ops::add(
+            data,
+            op,
+            label,
+            manifest.file.parent().unwrap_or(std::path::Path::new("")),
+        ),
         "rebuild-shadow-volume" => crate::shadow_ops::rebuild(data, op, label),
         "stretch-along-axis" => crate::stretch_ops::stretch(data, op, label),
         "remove-faces" => crate::face_ops::remove_faces(data, op, label),

@@ -1,13 +1,19 @@
 mod axis_common;
 pub mod bone_ops;
 pub mod component_ops;
+mod cylinder_uv;
 pub mod face_ops;
+mod face_projection;
 pub mod file_ops;
 pub mod lod_names;
+mod mesh_insert;
+mod mesh_math;
+mod mesh_ops;
 pub mod odol;
 pub mod pbo;
 pub mod shadow_ops;
 pub mod skeleton;
+mod source_mesh;
 
 pub mod engine;
 pub mod manifest;
