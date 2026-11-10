@@ -1,0 +1,17 @@
+[workspace]
+members = ["sign"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+license = "GPL-2.0-only"
+repository = "https://github.com/uksf/tooling"
+
+[workspace.dependencies]
+hemtt-common = { git = "https://github.com/BrettMayson/HEMTT", tag = "v1.23.1" }
+hemtt-pbo = { git = "https://github.com/BrettMayson/HEMTT", tag = "v1.23.1" }
+hemtt-signing = { git = "https://github.com/BrettMayson/HEMTT", tag = "v1.23.1" }
+
+[profile.release]
+lto = true
+codegen-units = 1
