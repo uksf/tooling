@@ -15,6 +15,6 @@ fn rejects_invalid_inputs() {
     assert!(text_replace(b"\0raPdata", "a", "x", 1).is_err());
     assert_eq!(
         text_replace(b"abc", "a", "x", 2).unwrap_err(),
-        "text-replace expected 2 match(es), found 1"
+        "text-replace expected 2 match(es) of \"a\", found 1"
     );
 }

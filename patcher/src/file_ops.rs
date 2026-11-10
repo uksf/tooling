@@ -5,7 +5,7 @@ pub fn text_replace(
     expected: usize,
 ) -> Result<Vec<u8>, String> {
     if find.is_empty() {
-        return Err("text-replace find is empty".into());
+        return Err("text-replace \"find\" is empty".into());
     }
     if input.starts_with(b"\0raP") {
         return Err(
@@ -27,10 +27,11 @@ pub fn text_replace(
         Err(_) if expected == 0 => return Ok(input.to_vec()),
         Err(_) => {
             return Err(format!(
-                "text-replace expected {expected} match(es), found 0"
+                "text-replace expected {expected} match(es) of \"{find}\", found 0"
             ));
         }
     };
+    let find_text: String = find.iter().map(|byte| char::from(*byte)).collect();
     let replacement = encode(replacement);
     let mut output = Vec::new();
     let mut offset = 0;
@@ -46,7 +47,7 @@ pub fn text_replace(
     }
     if count != expected {
         return Err(format!(
-            "text-replace expected {expected} match(es), found {count}"
+            "text-replace expected {expected} match(es) of \"{find_text}\", found {count}"
         ));
     }
     output.extend_from_slice(&input[offset..]);

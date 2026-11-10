@@ -104,6 +104,29 @@ pub fn patch(pristine: Vec<u8>, manifest: &Manifest) -> Result<Vec<u8>, String> 
             manifest.pbo
         ));
     }
+    let mut pinned = HashMap::new();
+    for asset in &manifest.assets {
+        let label = format!("{}:{}", manifest.pbo, asset.path);
+        let source = asset.copy_of.as_deref().unwrap_or(&asset.path);
+        let source_bytes = latin1(source).map_err(|e| format!("{label}: {e}"))?;
+        let index = pbo
+            .find(&source_bytes)
+            .map_err(|e| format!("{label}: cannot parse: {e}"))?
+            .ok_or_else(|| format!("{}: asset '{source}' is not in the PBO", manifest.pbo))?;
+        if let std::collections::hash_map::Entry::Vacant(entry) = pinned.entry(index) {
+            let data = pbo
+                .data(index)
+                .map_err(|e| format!("{label}: cannot read the asset: {e}"))?;
+            entry.insert(data);
+        }
+        let actual = sha256(&pinned[&index]);
+        if actual != asset.sha {
+            return Err(format!(
+                "{}: asset '{source}' does not match its pin: expected sha256 {}, actual {actual}. Upstream changed the asset; review and re-pin the patch.",
+                manifest.pbo, asset.sha
+            ));
+        }
+    }
     let mut replacements = HashMap::new();
     let mut additions: Vec<Addition> = Vec::new();
     let mut removals = HashSet::new();
@@ -148,16 +171,7 @@ pub fn patch(pristine: Vec<u8>, manifest: &Manifest) -> Result<Vec<u8>, String> 
                 manifest.pbo, asset.path
             ));
         }
-        let mut data = pbo
-            .data(index)
-            .map_err(|e| format!("{label}: cannot read the asset: {e}"))?;
-        let actual = sha256(&data);
-        if actual != asset.sha {
-            return Err(format!(
-                "{}: asset '{source}' does not match its pin: expected sha256 {}, actual {actual}. Upstream changed the asset; review and re-pin the patch.",
-                manifest.pbo, asset.sha
-            ));
-        }
+        let mut data = pinned[&index].clone();
         if asset.remove {
             removals.insert(index);
             continue;
