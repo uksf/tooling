@@ -57,3 +57,21 @@ fn rejects_truncated_pbo() {
     b.pop();
     assert!(Pbo::parse(b).is_err());
 }
+
+#[test]
+fn compressed_entry_requires_valid_checksum() {
+    let mut bytes = fixture();
+    let original = Pbo::parse(bytes.clone()).unwrap();
+    let fields = original.entries[0].fields;
+    let data = original.entries[0].offset;
+    bytes[fields..fields + 4].copy_from_slice(&0x4370_7273u32.to_le_bytes());
+    bytes[fields + 16..fields + 20].copy_from_slice(&8u32.to_le_bytes());
+    bytes.splice(data..data + 3, [7, b'a', b'b', b'c', 38, 1, 0, 0]);
+    let pbo = Pbo::parse(bytes.clone()).unwrap();
+    assert_eq!(pbo.data(0).unwrap(), b"abc");
+    bytes[data + 4] = 0;
+    assert_eq!(
+        Pbo::parse(bytes).unwrap().data(0).unwrap_err(),
+        "Checksum mismatch"
+    );
+}

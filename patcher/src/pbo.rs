@@ -55,6 +55,7 @@ fn normalise(bytes: &[u8]) -> Vec<u8> {
         .skip_while(|b| **b == 92 || **b == b'/')
         .map(|b| match b {
             b'/' => 92,
+            0xc0..=0xd6 | 0xd8..=0xde => b + 32,
             _ => b.to_ascii_lowercase(),
         })
         .collect()
@@ -157,7 +158,21 @@ impl Pbo {
             return Ok(data.to_vec());
         }
         let mut output = vec![0; e.original_size as usize];
-        hemtt_lzo::lz77::decompress(data, &mut output).map_err(str::to_owned)?;
+        if output.is_empty() {
+            return Ok(output);
+        }
+        let consumed = hemtt_lzo::lz77::decompress(data, &mut output).map_err(str::to_owned)?;
+        let checksum = u32::from_le_bytes(
+            data[consumed - 4..consumed]
+                .try_into()
+                .map_err(|_| "invalid checksum")?,
+        );
+        let actual = output
+            .iter()
+            .fold(0u32, |sum, byte| sum.wrapping_add(u32::from(*byte)));
+        if checksum != actual {
+            return Err("Checksum mismatch".into());
+        }
         Ok(output)
     }
 

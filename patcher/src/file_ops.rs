@@ -18,7 +18,19 @@ pub fn text_replace(
             .map(|c| u8::try_from(c as u32).unwrap_or(b'?'))
             .collect::<Vec<_>>()
     };
-    let find = encode(find);
+    let find = match find
+        .chars()
+        .map(|c| u8::try_from(c as u32))
+        .collect::<Result<Vec<_>, _>>()
+    {
+        Ok(find) => find,
+        Err(_) if expected == 0 => return Ok(input.to_vec()),
+        Err(_) => {
+            return Err(format!(
+                "text-replace expected {expected} match(es), found 0"
+            ));
+        }
+    };
     let replacement = encode(replacement);
     let mut output = Vec::new();
     let mut offset = 0;

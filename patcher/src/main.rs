@@ -13,8 +13,13 @@ fn run(args: &[String]) -> Result<u8, String> {
         }
         [command, path, asset] if command == "hash" => {
             let pbo = read_pbo(path)?;
+            let name = asset
+                .chars()
+                .map(|c| u8::try_from(c as u32))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| format!("{asset} is not in {path}"))?;
             let index = pbo
-                .find(asset.as_bytes())?
+                .find(&name)?
                 .ok_or_else(|| format!("{asset} is not in {path}"))?;
             println!("{:x}", Sha256::digest(pbo.data(index)?));
             Ok(0)
