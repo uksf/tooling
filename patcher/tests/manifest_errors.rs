@@ -130,6 +130,28 @@ fn comments_parse_and_state_inside_mod_is_rejected() {
 }
 
 #[test]
+fn validates_pristine_pin_and_removed_entry_shape() {
+    let f = Fixture::new();
+    f.manifest(serde_json::json!([f.asset()]));
+    let path = f.root.join("patches/x.json");
+    let original: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    for value in [serde_json::Value::Null, serde_json::json!(42)] {
+        let mut invalid = original.clone();
+        invalid["pristineSha256"] = value;
+        fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+        f.assert_rejected("\"pristineSha256\" must be a string");
+    }
+    let mut invalid = original;
+    invalid.as_object_mut().unwrap().remove("pristineSha256");
+    fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+    f.assert_rejected("missing \"pristineSha256\"");
+    let mut asset = f.asset();
+    asset["remove"] = true.into();
+    f.manifest(serde_json::json!([asset]));
+    f.assert_rejected("takes no \"ops\" or \"copyOf\"");
+}
+
+#[test]
 fn corrupt_backup_fails_closed() {
     let f = Fixture::new();
     f.manifest(serde_json::json!([f.asset()]));
