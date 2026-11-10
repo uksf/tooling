@@ -1,5 +1,7 @@
+mod axis_common;
 pub mod bone_ops;
 pub mod component_ops;
+pub mod face_ops;
 pub mod file_ops;
 pub mod lod_names;
 pub mod odol;

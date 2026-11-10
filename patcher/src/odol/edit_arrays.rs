@@ -40,6 +40,14 @@ fn condensed(raw: &[u8], width: usize) -> Result<Blob, String> {
     Ok(Blob { origin: v })
 }
 
+pub fn set_faces(selection: &mut super::Selection, mut faces: Vec<i32>) -> Result<(), String> {
+    faces.sort_unstable();
+    let raw: Vec<u8> = faces.iter().flat_map(|f| f.to_le_bytes()).collect();
+    selection.faces_origin = array(&raw, faces.len())?;
+    selection.faces = faces;
+    Ok(())
+}
+
 pub fn append_memory(
     lod: &mut Lod,
     donor: usize,
