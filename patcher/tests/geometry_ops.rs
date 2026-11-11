@@ -113,7 +113,7 @@ fn splits_shared_memory_point_and_keeps_donor_binding() {
     assert_eq!(muzzle, old.vertices.len());
     assert_eq!(
         lod.vertices[muzzle],
-        [0.860060871, 0.0414807796, -2.22018695]
+        [0.860_060_9, 0.041_480_78, -2.220_187]
     );
     assert_eq!(lod.clip[muzzle], lod.clip[chamber]);
     assert_eq!(lod.bones[muzzle].count, lod.bones[chamber].count);
