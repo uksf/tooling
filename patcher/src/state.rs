@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    fs::{self, OpenOptions},
+    fs::{self, File, OpenOptions, TryLockError},
     io::{ErrorKind, Write},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
@@ -72,6 +72,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
 pub struct RunLock {
     path: PathBuf,
     created_dir: bool,
+    _file: File,
 }
 
 impl Drop for RunLock {
@@ -91,12 +92,23 @@ impl Store {
         let created_dir = !self.dir.exists();
         fs::create_dir_all(&self.dir).map_err(|e| format!("{}: {e}", self.dir.display()))?;
         let path = self.dir.join(".uksf-patcher.lock");
-        OpenOptions::new()
+        let fail =
+            |e: &dyn std::fmt::Display| format!("cannot acquire lock {}: {e}", path.display());
+        let file = OpenOptions::new()
             .write(true)
-            .create_new(true)
+            .create(true)
+            .truncate(false)
             .open(&path)
-            .map_err(|e| format!("cannot acquire lock {}: {e}", path.display()))?;
-        Ok(RunLock { path, created_dir })
+            .map_err(|e| fail(&e))?;
+        file.try_lock().map_err(|e| match e {
+            TryLockError::WouldBlock => fail(&"another run holds it"),
+            TryLockError::Error(e) => fail(&e),
+        })?;
+        Ok(RunLock {
+            path,
+            created_dir,
+            _file: file,
+        })
     }
     pub fn state_path(&self, pbo: &str) -> PathBuf {
         self.dir.join(format!("{pbo}.state.json"))

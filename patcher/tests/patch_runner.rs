@@ -144,7 +144,8 @@ fn lock_rejects_contender_and_stale_temp_does_not_block_apply() {
     b.manifest(b.asset("2"));
     fs::create_dir_all(b.root.join("state")).unwrap();
     let lock = b.root.join("state/.uksf-patcher.lock");
-    fs::write(&lock, b"held").unwrap();
+    let holder = fs::File::create(&lock).unwrap();
+    holder.try_lock().unwrap();
     let blocked = b.run("apply", &[]);
     assert_eq!(blocked.status.code(), Some(1));
     assert!(
@@ -154,6 +155,7 @@ fn lock_rejects_contender_and_stale_temp_does_not_block_apply() {
     );
     assert!(err(&blocked).contains("lock"));
     assert_eq!(b.pbo(), b.pristine);
+    drop(holder);
     fs::remove_file(lock).unwrap();
     fs::write(b.root.join("mod/addons/x.pbo.uksf-patcher.tmp"), b"stale").unwrap();
     let applied = b.run("apply", &[]);
@@ -163,6 +165,17 @@ fn lock_rejects_contender_and_stale_temp_does_not_block_apply() {
         fs::read(b.root.join("mod/addons/x.pbo.uksf-patcher.tmp")).unwrap(),
         b"stale"
     );
+}
+
+#[test]
+fn leftover_lock_file_without_holder_does_not_block_apply() {
+    let b = Boxed::new();
+    b.manifest(b.asset("2"));
+    fs::create_dir_all(b.root.join("state")).unwrap();
+    fs::write(b.root.join("state/.uksf-patcher.lock"), b"crashed run").unwrap();
+    let applied = b.run("apply", &[]);
+    assert_eq!(applied.status.code(), Some(0), "{}", err(&applied));
+    assert_eq!(Pbo::parse(b.pbo()).unwrap().data(0).unwrap(), b"a=2; 2;");
 }
 
 #[test]
