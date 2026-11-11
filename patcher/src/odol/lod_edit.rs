@@ -44,6 +44,10 @@ pub fn set_normals(lod: &mut Lod, raw: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+pub fn st(lod: &Lod) -> Result<Vec<u8>, String> {
+    Ok(Reader::new(&lod.st_origin.origin).packed_array(8)?.1)
+}
+
 pub fn set_st(lod: &mut Lod, raw: &[u8]) -> Result<(), String> {
     lod.st_origin = array(raw, raw.len() / 8)?;
     Ok(())
@@ -204,6 +208,14 @@ pub fn write_uv(set: &mut UvSet, uv: &[[f32; 2]]) -> Result<(), String> {
     set.min = min;
     set.max = max;
     set.data.origin = payload(&raw);
+    Ok(())
+}
+
+pub fn reload_uv(set: &mut UvSet) -> Result<(), String> {
+    let mut w = Writer::new();
+    set.write(&mut w);
+    let bytes = w.into_vec();
+    *set = UvSet::read(&mut Reader::new(&bytes))?;
     Ok(())
 }
 

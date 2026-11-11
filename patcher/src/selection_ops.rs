@@ -53,16 +53,7 @@ pub fn copy_selection_points(data: &[u8], op: &Value, label: &str) -> Result<Vec
         if !(0.0..=1.0).contains(&shrink) {
             return Err("shrink must be between 0 and 1".into());
         }
-        let lod = &model.lods[target];
-        if !lod.faces.is_empty() {
-            return Err(
-                "target LOD has faces; copy-selection-points only adds loose points".into(),
-            );
-        }
-        if lod.vertices.is_empty() {
-            return Err("target LOD has no vertex to copy point flags from".into());
-        }
-        require_new(lod, name)?;
+        crate::point_ops::check_loose(&model.lods[target], name)?;
         let source = &model.lods[from_lod];
         let mut seen = HashSet::new();
         let positions = source.selections[single(source, from_name)?]
@@ -82,24 +73,7 @@ pub fn copy_selection_points(data: &[u8], op: &Value, label: &str) -> Result<Vec
                 points.len()
             ));
         }
-        let lod = &mut model.lods[target];
-        let clip = *lod.clip.first().ok_or("target LOD has no clip flags")?;
-        let normal: [u8; 4] = lod_edit::normals(lod)?
-            .get(..4)
-            .and_then(|n| n.try_into().ok())
-            .ok_or("target LOD has no normals")?;
-        let bone = lod
-            .bones
-            .first()
-            .ok_or("target LOD has no bone weights")?
-            .clone();
-        let added = points
-            .into_iter()
-            .map(|p| lod_edit::append_vertex(lod, p, clip, normal, bone.clone()))
-            .collect::<Result<Vec<_>, _>>()?;
-        let selection = lod_edit::new_selection(latin1(name)?, false, &[], &[], &added)?;
-        lod.selections.push(selection);
-        Ok(())
+        crate::point_ops::add_loose(&mut model.lods[target], name, points)
     })
 }
 

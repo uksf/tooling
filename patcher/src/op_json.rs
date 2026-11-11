@@ -56,6 +56,15 @@ pub fn int(op: &Value, name: &str, fallback: i32) -> Result<i32, String> {
     })
 }
 
+pub fn required_int(op: &Value, name: &str) -> Result<i32, String> {
+    match op.get(name) {
+        Some(v) if v.is_number() => {
+            int32(v).ok_or_else(|| format!("op needs \"{name}\" as an integer: {op}"))
+        }
+        _ => Err(format!("op is missing int \"{name}\": {op}")),
+    }
+}
+
 pub fn optional_bool(op: &Value, name: &str) -> Result<Option<bool>, String> {
     op.get(name)
         .map(|v| {
@@ -177,6 +186,14 @@ pub fn edit(
     rewrites_faces: bool,
     change: impl FnOnce(&mut Model) -> Result<(), String>,
 ) -> Result<Vec<u8>, String> {
+    edit_unlabelled(data, rewrites_faces, change).map_err(|e| format!("{label}: {e}"))
+}
+
+pub fn edit_unlabelled(
+    data: &[u8],
+    rewrites_faces: bool,
+    change: impl FnOnce(&mut Model) -> Result<(), String>,
+) -> Result<Vec<u8>, String> {
     let run = || -> Result<Vec<u8>, String> {
         let mut model = Model::parse(data)?;
         if model.write()? != data {
@@ -192,7 +209,7 @@ pub fn edit(
         }
         Ok(output)
     };
-    run().map_err(|e| format!("{label}: {e}"))
+    run()
 }
 
 #[test]
