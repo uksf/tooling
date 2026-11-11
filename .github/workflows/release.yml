@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -23,13 +24,21 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Musl
-        if: runner.os == 'Linux'
-        run: sudo apt-get install -y musl-tools
       - name: Target
         run: rustup target add ${{ matrix.target }}
       - name: Test
-        run: cargo test --locked --release --target ${{ matrix.target }}
+        run: cargo test --locked --release
+      - name: Zig
+        if: runner.os == 'Linux'
+        run: |
+          python3 -m pip install --user --break-system-packages ziglang cargo-zigbuild
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build musl
+        if: runner.os == 'Linux'
+        run: cargo zigbuild --locked --release --target ${{ matrix.target }}
+      - name: Build msvc
+        if: runner.os == 'Windows'
+        run: cargo build --locked --release --target ${{ matrix.target }}
       - name: Package
         shell: bash
         run: |
@@ -44,6 +53,7 @@ jobs:
 
   release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
