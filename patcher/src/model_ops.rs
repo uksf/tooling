@@ -20,7 +20,7 @@ pub fn set_skeleton_name(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>
         return Err(format!("{label}: set-skeleton-name \"to\" is empty"));
     }
     let skeleton = &mut model.info.skeleton;
-    if !skeleton.name.eq_ignore_ascii_case(from.as_bytes()) {
+    if !crate::op_json::same(&skeleton.name, from) {
         return Err(format!(
             "{label}: skeleton is '{}', the patch expects '{from}'",
             String::from_utf8_lossy(&skeleton.name)

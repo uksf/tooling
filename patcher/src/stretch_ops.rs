@@ -74,7 +74,7 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
                     bones
                         .iter()
                         .filter_map(Value::as_str)
-                        .any(|b| n.name.eq_ignore_ascii_case(b.as_bytes()))
+                        .any(|b| crate::op_json::same(&n.name, b))
                 }) && frame.along(pos) > cut
                 {
                     for (k, value) in shift.iter().enumerate() {
@@ -100,7 +100,7 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
             let s = lod
                 .selections
                 .iter()
-                .find(|s| s.name.eq_ignore_ascii_case(name.as_bytes()))
+                .find(|s| crate::op_json::same(&s.name, name))
                 .ok_or_else(|| format!("memory LOD has no selection '{name}'"))?;
             indices.extend(s.vertices.iter().copied());
         }

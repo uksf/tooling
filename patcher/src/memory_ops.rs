@@ -47,7 +47,7 @@ pub fn split_memory_point(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8
                 .selections
                 .iter()
                 .enumerate()
-                .filter(|(_, s)| s.name.eq_ignore_ascii_case(name.as_bytes()))
+                .filter(|(_, s)| crate::op_json::same(&s.name, name))
                 .collect();
             if matches.len() != 1 {
                 return Err(format!("memory LOD has no unique selection '{name}'"));

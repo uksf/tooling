@@ -91,7 +91,7 @@ pub fn bound(model: &Model, lod: &Lod, op: &Value) -> Result<Vec<bool>, String> 
             .skeleton
             .bones
             .iter()
-            .any(|b| b.name.eq_ignore_ascii_case(name.as_bytes()))
+            .any(|b| crate::op_json::same(&b.name, name))
         {
             return Err(format!("skeleton has no bone '{name}'"));
         }
@@ -100,11 +100,12 @@ pub fn bound(model: &Model, lod: &Lod, op: &Value) -> Result<Vec<bool>, String> 
         .sub_to_skeleton
         .iter()
         .map(|&i| {
-            model.info.skeleton.bones.get(i as usize).is_some_and(|b| {
-                bones
-                    .iter()
-                    .any(|n| b.name.eq_ignore_ascii_case(n.as_bytes()))
-            })
+            model
+                .info
+                .skeleton
+                .bones
+                .get(i as usize)
+                .is_some_and(|b| bones.iter().any(|n| crate::op_json::same(&b.name, n)))
         })
         .collect::<Vec<_>>();
     if lod.bones.len() != lod.vertices.len() {

@@ -50,8 +50,18 @@ pub fn latin1(s: &str) -> Result<Vec<u8>, String> {
         .collect()
 }
 
+fn ordinal_upper(c: char) -> char {
+    let mut upper = c.to_uppercase();
+    let first = upper.next().unwrap_or(c);
+    if upper.next().is_some() { c } else { first }
+}
+
 pub fn same(a: &[u8], b: &str) -> bool {
-    a.eq_ignore_ascii_case(b.as_bytes())
+    a.iter()
+        .copied()
+        .map(char::from)
+        .map(ordinal_upper)
+        .eq(b.chars().map(ordinal_upper))
 }
 
 pub fn text(bytes: &[u8]) -> String {

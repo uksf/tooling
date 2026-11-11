@@ -21,27 +21,25 @@ pub fn set_bone_parent(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
         let name = string(op, "bone")?;
         let from = string(op, "from")?;
         let to = string(op, "to")?;
-        let name_bytes = latin(name)?;
-        let from_bytes = latin(from)?;
         let to_bytes = latin(to)?;
         let bones = &mut model.info.skeleton.bones;
         let matches: Vec<_> = bones
             .iter()
             .enumerate()
-            .filter(|(_, b)| b.name.eq_ignore_ascii_case(&name_bytes))
+            .filter(|(_, b)| crate::op_json::same(&b.name, name))
             .map(|(i, _)| i)
             .collect();
         if matches.len() != 1 {
             return Err(format!("skeleton has no unique bone '{name}'"));
         }
         let index = matches[0];
-        if !bones[index].parent.eq_ignore_ascii_case(&from_bytes) {
+        if !crate::op_json::same(&bones[index].parent, from) {
             return Err(format!(
                 "bone '{name}' has parent '{}', the patch expects '{from}'",
                 String::from_utf8_lossy(&bones[index].parent)
             ));
         }
-        if !to.is_empty() && !bones.iter().any(|b| b.name.eq_ignore_ascii_case(&to_bytes)) {
+        if !to.is_empty() && !bones.iter().any(|b| crate::op_json::same(&b.name, to)) {
             return Err(format!("new parent '{to}' is not a bone of the skeleton"));
         }
         bones[index].parent = to_bytes;

@@ -60,6 +60,35 @@ fn add_translation_appends_a_class_bound_to_the_bone() {
 }
 
 #[test]
+fn latin1_animation_and_bone_names_match_ordinal_case() {
+    let mut model = Model::parse(RHICC).unwrap();
+    model.animations.as_mut().unwrap().classes[0].name = vec![0xc9];
+    model.info.skeleton.bones[3].name = vec![0xe9];
+    let bytes = model.write().unwrap();
+    let changed = apply(
+        anim_ops::set_animation_source,
+        &bytes,
+        json!({"animation":"é","to":"hook"}),
+    );
+    assert_eq!(changed.animations.unwrap().classes[0].source, b"hook");
+    let args = json!({"animation":"new","bone":"É","animationSource":"s","minValue":0,"maxValue":1,"offset0":0,"offset1":1,"axis":[0,0,1]});
+    let changed = apply(anim_ops::add_translation, &bytes, args.clone());
+    assert_eq!(
+        *changed.animations.unwrap().anims_to_bones[0]
+            .last()
+            .unwrap(),
+        3
+    );
+    let mut duplicate = args;
+    duplicate["animation"] = json!("é");
+    assert!(
+        anim_ops::add_translation(&bytes, &duplicate, "t")
+            .unwrap_err()
+            .contains("already has an animation")
+    );
+}
+
+#[test]
 fn add_memory_point_appends_an_unbound_point() {
     let m = apply(
         memory_edit_ops::add_memory_point,
