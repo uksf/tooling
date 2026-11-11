@@ -53,7 +53,11 @@ pub fn latin1(s: &str) -> Result<Vec<u8>, String> {
 fn ordinal_upper(c: char) -> char {
     let mut upper = c.to_uppercase();
     let first = upper.next().unwrap_or(c);
-    if upper.next().is_some() { c } else { first }
+    if upper.next().is_some() || (first.is_ascii() && !c.is_ascii()) {
+        c
+    } else {
+        first
+    }
 }
 
 pub fn same(a: &[u8], b: &str) -> bool {
@@ -62,6 +66,11 @@ pub fn same(a: &[u8], b: &str) -> bool {
         .map(char::from)
         .map(ordinal_upper)
         .eq(b.chars().map(ordinal_upper))
+}
+
+pub fn contains(model: &[u8], filter: &str) -> bool {
+    let n = filter.chars().count();
+    n == 0 || model.windows(n).any(|w| same(w, filter))
 }
 
 pub fn text(bytes: &[u8]) -> String {
@@ -90,4 +99,25 @@ pub fn edit(
         Ok(output)
     };
     run().map_err(|e| format!("{label}: {e}"))
+}
+
+#[test]
+fn same_matches_dotnet_ordinal_ignore_case() {
+    for (model, manifest, equal) in [
+        (0xff, "\u{178}", true),
+        (0xff, "\u{ff}", true),
+        (0xb5, "\u{39c}", true),
+        (0xb5, "\u{3bc}", true),
+        (0xdf, "\u{1e9e}", false),
+        (0xdf, "SS", false),
+        (0xdf, "\u{df}", true),
+        (b's', "\u{17f}", false),
+        (b'i', "\u{131}", false),
+        (b'k', "\u{212a}", false),
+    ] {
+        assert_eq!(same(&[model], manifest), equal, "{model:#x} {manifest}");
+    }
+    assert!(contains(b"\\p\xe9x", "ÉX"));
+    assert!(contains(b"ab", ""));
+    assert!(!contains(b"ab", "abc"));
 }

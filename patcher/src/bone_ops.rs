@@ -47,8 +47,8 @@ pub fn set_bone_parent(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
         for bone in bones.iter() {
             if parents
                 .insert(
-                    bone.name.to_ascii_lowercase(),
-                    bone.parent.to_ascii_lowercase(),
+                    crate::op_json::text(&bone.name).to_lowercase(),
+                    crate::op_json::text(&bone.parent).to_lowercase(),
                 )
                 .is_some()
             {
@@ -60,10 +60,7 @@ pub fn set_bone_parent(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
             let mut current = start;
             while !current.is_empty() {
                 if !seen.insert(current) {
-                    return Err(format!(
-                        "the new parent makes a cycle through '{}'",
-                        String::from_utf8_lossy(current)
-                    ));
+                    return Err(format!("the new parent makes a cycle through '{current}'"));
                 }
                 match parents.get(current) {
                     Some(next) => current = next,

@@ -1,4 +1,8 @@
-use crate::{lod_names::resolution, odol::Model};
+use crate::{
+    lod_names::resolution,
+    odol::Model,
+    op_json::{same, strings},
+};
 use serde_json::Value;
 use std::collections::HashSet;
 
@@ -27,24 +31,7 @@ pub fn remove_component(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
             return Err(format!("no {name} LOD"));
         }
         let lod = &mut model.lods[matches[0]];
-        let names: HashSet<Vec<u8>> = op
-            .get("components")
-            .and_then(Value::as_array)
-            .ok_or("op is missing string array \"components\"")?
-            .iter()
-            .map(|n| {
-                n.as_str()
-                    .ok_or("invalid component")
-                    .and_then(|s| {
-                        s.chars()
-                            .map(|c| {
-                                u8::try_from(c as u32).map_err(|_| "character outside Latin-1")
-                            })
-                            .collect::<Result<Vec<_>, _>>()
-                    })
-                    .map(|v| v.to_ascii_lowercase())
-            })
-            .collect::<Result<_, _>>()?;
+        let names = strings(op, "components")?;
         let required = op
             .get("requireProxyFaces")
             .map(|v| v.as_bool().ok_or("invalid requireProxyFaces"))
@@ -60,28 +47,27 @@ pub fn remove_component(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
             let selected: Vec<_> = lod
                 .selections
                 .iter()
-                .filter(|s| s.name.eq_ignore_ascii_case(name))
+                .filter(|s| same(&s.name, name))
                 .collect();
-            let text = String::from_utf8_lossy(name);
             if selected.len() != 1 {
                 return Err(format!(
-                    "LOD {name_lod} has no unique selection '{text}'",
+                    "LOD {name_lod} has no unique selection '{name}'",
                     name_lod = name_str(op)
                 ));
             }
-            if !name.starts_with(b"component") {
-                return Err(format!("'{text}' is not a component selection"));
+            if !name.to_lowercase().starts_with("component") {
+                return Err(format!("'{name}' is not a component selection"));
             }
             if required && !selected[0].faces.iter().all(|f| faces.contains(f)) {
                 return Err(format!(
-                    "'{text}' has faces that are not proxy faces; set requireProxyFaces false to remove a real component"
+                    "'{name}' has faces that are not proxy faces; set requireProxyFaces false to remove a real component"
                 ));
             }
         }
         let mut indices = Vec::with_capacity(lod.selections.len());
         let mut next = 0;
         for selection in &lod.selections {
-            if names.contains(&selection.name.to_ascii_lowercase()) {
+            if names.iter().any(|n| same(&selection.name, n)) {
                 indices.push(None);
             } else {
                 indices.push(Some(next));
@@ -96,7 +82,7 @@ pub fn remove_component(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
                 .ok_or("a proxy's selection cannot be removed")?;
         }
         lod.selections
-            .retain(|s| !names.contains(&s.name.to_ascii_lowercase()));
+            .retain(|s| !names.iter().any(|n| same(&s.name, n)));
         let result = model.write()?;
         Model::parse(&result)?;
         Ok(result)

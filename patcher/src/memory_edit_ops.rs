@@ -1,7 +1,7 @@
 use crate::{
     axis_common::lod_index,
     odol::{BoneWeight, Lod, Proxy, Section, edit_arrays::set_vertices, lod_edit},
-    op_json::{edit, floats, latin1, same, string, text},
+    op_json::{contains, edit, floats, latin1, same, string, text},
 };
 use serde_json::Value;
 
@@ -58,7 +58,7 @@ fn unique(lod: &Lod, name: &str) -> Result<Option<usize>, String> {
 
 pub fn add_memory_proxies(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String> {
     edit(data, label, true, |model| {
-        let filter = string(op, "filter")?.to_ascii_lowercase();
+        let filter = string(op, "filter")?;
         let src = lod_index(model, "0")?;
         let mi = lod_index(model, "memory")?;
         if !model.lods[mi].faces.is_empty() || !model.lods[mi].sections.is_empty() {
@@ -67,7 +67,7 @@ pub fn add_memory_proxies(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8
         let mut sources: Vec<Proxy> = model.lods[src]
             .proxies
             .iter()
-            .filter(|p| text(&p.model).to_ascii_lowercase().contains(&filter))
+            .filter(|p| contains(&p.model, filter))
             .cloned()
             .collect();
         if sources.is_empty() {

@@ -61,15 +61,9 @@ pub fn remap_proxies(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, St
         let mut used = HashSet::new();
         for lod in &mut model.lods {
             for proxy in &mut lod.proxies {
-                let model_name: String = proxy
-                    .model
-                    .iter()
-                    .map(|&c| char::from(c))
-                    .collect::<String>()
-                    .to_lowercase();
                 if let Some(rule) = rules
                     .iter()
-                    .find(|r| r.from == model_name && r.id == proxy.sequence)
+                    .find(|r| crate::op_json::same(&proxy.model, &r.from) && r.id == proxy.sequence)
                 {
                     let bytes = rule
                         .to

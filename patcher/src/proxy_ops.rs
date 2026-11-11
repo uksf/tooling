@@ -10,7 +10,7 @@ fn string<'a>(op: &'a Value, key: &str) -> Result<&'a str, String> {
         .ok_or_else(|| format!("op is missing string \"{key}\": {op}"))
 }
 fn same(a: &[u8], b: &[u8]) -> bool {
-    a.eq_ignore_ascii_case(b)
+    crate::op_json::same(a, &crate::op_json::text(b))
 }
 fn index(model: &Model, name: &str) -> Result<usize, String> {
     let n = resolution(name)?;
@@ -43,17 +43,13 @@ fn key_eq(a: &Proxy, b: &Proxy) -> bool {
     a.sequence == b.sequence && same(&a.model, &b.model)
 }
 fn restore(model: &mut Model, op: &Value) -> Result<(), String> {
-    let filter = string(op, "filter")?.to_ascii_lowercase();
+    let filter = string(op, "filter")?;
     let from_name = string(op, "from")?;
     let from = index(model, from_name)?;
     let sources: Vec<_> = model.lods[from]
         .proxies
         .iter()
-        .filter(|p| {
-            String::from_utf8_lossy(&p.model)
-                .to_ascii_lowercase()
-                .contains(&filter)
-        })
+        .filter(|p| crate::op_json::contains(&p.model, filter))
         .cloned()
         .collect();
     if sources.is_empty() {
@@ -74,16 +70,22 @@ fn restore(model: &mut Model, op: &Value) -> Result<(), String> {
             return Err(format!("LOD {name} already has every matching proxy"));
         }
         for source in missing {
-            let wanted = format!(
-                "proxy:{}.{}",
-                String::from_utf8_lossy(&source.model),
-                format_args!("{:03}", source.sequence)
-            );
+            let wanted = [
+                &b"proxy:"[..],
+                &source.model,
+                format!(".{:03}", source.sequence).as_bytes(),
+            ]
+            .concat();
             let selection = model.lods[dest]
                 .selections
                 .iter()
-                .position(|s| same(&s.name, wanted.as_bytes()))
-                .ok_or_else(|| format!("LOD {name} has no selection '{wanted}'"))?;
+                .position(|s| same(&s.name, &wanted))
+                .ok_or_else(|| {
+                    format!(
+                        "LOD {name} has no selection '{}'",
+                        crate::op_json::text(&wanted)
+                    )
+                })?;
             let section = if let Some(sibling) = model.lods[dest]
                 .proxies
                 .iter()

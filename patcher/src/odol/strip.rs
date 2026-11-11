@@ -1,20 +1,9 @@
 use super::{Animations, Header, Model, ModelInfo, io::Reader};
 use serde_json::Value;
-use std::collections::HashSet;
 
 pub fn strip_animations(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String> {
     let run = || -> Result<Vec<u8>, String> {
-        let expected: HashSet<String> = op
-            .get("sources")
-            .and_then(Value::as_array)
-            .ok_or("op is missing string array \"sources\"")?
-            .iter()
-            .map(|s| {
-                s.as_str()
-                    .map(str::to_lowercase)
-                    .ok_or("invalid source".to_owned())
-            })
-            .collect::<Result<_, _>>()?;
+        let expected = crate::op_json::strings(op, "sources")?;
         if expected.is_empty() {
             return Err("strip-animations \"sources\" is empty".into());
         }
@@ -34,18 +23,15 @@ pub fn strip_animations(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
         {
             return Err("malformed animation block".into());
         }
-        let sources: HashSet<String> = animations
+        let sources: Vec<&[u8]> = animations
             .classes
             .iter()
-            .map(|a| {
-                a.source
-                    .iter()
-                    .map(|&c| char::from(c))
-                    .collect::<String>()
-                    .to_lowercase()
-            })
+            .map(|a| a.source.as_slice())
             .collect();
-        if sources != expected {
+        let matched = |s: &[u8]| expected.iter().any(|e| crate::op_json::same(s, e));
+        let found = |e: &str| sources.iter().any(|s| crate::op_json::same(s, e));
+        if !sources.iter().all(|s| matched(s)) || !expected.iter().all(|e| found(e)) {
+            let sources: Vec<_> = sources.iter().map(|s| crate::op_json::text(s)).collect();
             return Err(format!(
                 "the model's animation sources are {sources:?}, not {expected:?}"
             ));
