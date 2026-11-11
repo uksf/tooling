@@ -131,12 +131,20 @@ impl<'a> Cylinder<'a> {
             fit.coefficients[i] = [u[i] as f32, v[i] as f32];
         }
         fit.radius = (total / count as f64) as f32;
-        for (t, l, uv) in rows {
-            let p = fit.map(t, l);
-            let d = [p[0] - uv[0], p[1] - uv[1]];
-            if (d[0] * d[0] + d[1] * d[1]).sqrt() > 0.02 {
-                return Err("the barrel UVs are not a cylindrical unwrap".into());
-            }
+        let worst = rows
+            .iter()
+            .map(|&(t, l, uv)| {
+                let p = fit.map(t, l);
+                let d = [p[0] - uv[0], p[1] - uv[1]];
+                (d[0] * d[0] + d[1] * d[1]).sqrt()
+            })
+            .filter(|r| !r.is_nan())
+            .fold(f32::NEG_INFINITY, f32::max);
+        if worst > 0.02 {
+            return Err(format!(
+                "the barrel UVs are not a cylindrical unwrap (worst residual {})",
+                crate::dotnet_fmt::fixed(worst, 4)
+            ));
         }
         Ok(fit)
     }

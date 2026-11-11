@@ -6,6 +6,7 @@ mod bound;
 pub mod component_ops;
 pub mod cut_seams;
 mod cylinder_uv;
+pub mod dotnet_fmt;
 pub mod face_ops;
 mod face_projection;
 pub mod file_ops;

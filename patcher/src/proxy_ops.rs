@@ -73,7 +73,7 @@ fn restore(model: &mut Model, op: &Value) -> Result<(), String> {
             let wanted = [
                 &b"proxy:"[..],
                 &source.model,
-                format!(".{:03}", source.sequence).as_bytes(),
+                format!(".{}", crate::dotnet_fmt::pad3(source.sequence)).as_bytes(),
             ]
             .concat();
             let selection = model.lods[dest]

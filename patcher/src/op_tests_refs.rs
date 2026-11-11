@@ -4,7 +4,7 @@ use crate::{
     op_tests_mesh::rigged,
     shadow_ops,
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 const SCOPE: &[u8] = include_bytes!("../tests/data/scope.p3d");
 const CABLE: &[u8] = include_bytes!("../tests/data/cable.p3d");
@@ -172,5 +172,41 @@ fn proxy_references_out_of_range_are_rejected() {
             },
             &needle,
         );
+    }
+}
+
+#[test]
+fn remap_proxies_names_selections_like_dotnet_000() {
+    let mut model = Model::parse(SCOPE).unwrap();
+    let lod = &mut model.lods[0];
+    let s = lod_edit::new_selection(b"proxy:old.001".to_vec(), false, &[], &[], &[]).unwrap();
+    lod.selections.push(s);
+    lod.proxies = vec![crate::odol::Proxy {
+        model: b"old".to_vec(),
+        transform: [0.0; 12],
+        sequence: 1,
+        selection: lod.selections.len() as i32 - 1,
+        bone: -1,
+        section: 0,
+    }];
+    let base = model.write().unwrap();
+    for (to_id, name) in [
+        (json!(-1), "-001"),
+        (json!(-99), "-099"),
+        (json!(-100), "-100"),
+        (json!(0), "000"),
+        (json!(1), "001"),
+        (json!(999), "999"),
+        (json!(1000), "1000"),
+        (Value::Null, "-001"),
+    ] {
+        let mut rule = json!({"model":"OLD","id":1,"toModel":"new"});
+        if !to_id.is_null() {
+            rule["toId"] = to_id;
+        }
+        let out = crate::remap_ops::remap_proxies(&base, &json!({"rules":[rule]}), "t").unwrap();
+        let lod = &Model::parse(&out).unwrap().lods[0];
+        let selection = &lod.selections[lod.proxies[0].selection as usize];
+        assert_eq!(selection.name, format!("proxy:new.{name}").as_bytes());
     }
 }

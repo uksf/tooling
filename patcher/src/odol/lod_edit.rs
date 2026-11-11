@@ -186,7 +186,10 @@ pub fn write_uv(set: &mut UvSet, uv: &[[f32; 2]]) -> Result<(), String> {
     if min.iter().chain(&max).any(|x| !x.is_finite()) {
         return Err(format!(
             "UV bounds overflow ({},{})..({},{})",
-            min[0], min[1], max[0], max[1]
+            crate::dotnet_fmt::float(min[0]),
+            crate::dotnet_fmt::float(min[1]),
+            crate::dotnet_fmt::float(max[0]),
+            crate::dotnet_fmt::float(max[1])
         ));
     }
     let mut raw = Vec::with_capacity(uv.len() * 4);

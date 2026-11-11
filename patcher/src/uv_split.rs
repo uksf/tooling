@@ -54,7 +54,10 @@ impl Ctx<'_> {
         if ratio > 0. && ratio.is_finite() && result.is_finite() {
             Ok(result)
         } else {
-            Err(format!("uv-split collapses a section's UV area to {ratio}"))
+            Err(format!(
+                "uv-split collapses a section's UV area to {}",
+                crate::dotnet_fmt::float(ratio)
+            ))
         }
     }
 }

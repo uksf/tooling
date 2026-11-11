@@ -71,7 +71,8 @@ pub fn add_physx(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String
             let scaled = mi.inv_inertia.map(|v| v.map(|x| x * old / mass));
             if scaled.iter().flatten().any(|x| !x.is_finite()) {
                 return Err(format!(
-                    "add-physx mass {mass} gives a non-finite inverse inertia"
+                    "add-physx mass {} gives a non-finite inverse inertia",
+                    crate::dotnet_fmt::float(mass)
                 ));
             }
             mi.inv_inertia = scaled;

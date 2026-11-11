@@ -24,27 +24,6 @@ fn matches(a: f32, b: f32) -> bool {
 fn text(bytes: &[u8]) -> String {
     bytes.iter().map(|b| char::from(*b)).collect()
 }
-fn general(value: f32, digits: i32) -> String {
-    if value == 0.0 || !value.is_finite() {
-        return value.to_string();
-    }
-    let exponent = f64::from(value).abs().log10().floor() as i32;
-    if !(-4..digits).contains(&exponent) {
-        let raw = format!("{:.*e}", (digits - 1) as usize, f64::from(value));
-        let (mantissa, power) = raw.split_once('e').unwrap();
-        let mantissa = mantissa.trim_end_matches('0').trim_end_matches('.');
-        let power: i32 = power.parse().unwrap();
-        format!("{mantissa}E{power:+03}")
-    } else {
-        let decimals = (digits - 1 - exponent).max(0) as usize;
-        let raw = format!("{:.*}", decimals, f64::from(value));
-        if raw.contains('.') {
-            raw.trim_end_matches('0').trim_end_matches('.').to_owned()
-        } else {
-            raw
-        }
-    }
-}
 fn boolean(b: bool) -> &'static str {
     if b { "True" } else { "False" }
 }
@@ -108,7 +87,7 @@ pub fn run(path: &str, asset: &str, lod_name: Option<&str>) -> Result<u8, String
             lod.faces.len(),
             lod.face_bytes,
             lod.face_flags,
-            lod.face_area
+            crate::dotnet_fmt::float(lod.face_area)
         );
         for section in &lod.sections {
             println!(
@@ -138,7 +117,7 @@ pub fn run(path: &str, asset: &str, lod_name: Option<&str>) -> Result<u8, String
                 .iter()
                 .find(|(_, r)| matches(lod.resolution, *r))
                 .map(|(name, _)| (*name).to_owned())
-                .unwrap_or_else(|| general(lod.resolution, 6));
+                .unwrap_or_else(|| crate::dotnet_fmt::general(lod.resolution, 6));
             let components = lod
                 .selections
                 .iter()
@@ -146,7 +125,7 @@ pub fn run(path: &str, asset: &str, lod_name: Option<&str>) -> Result<u8, String
                 .count();
             println!(
                 "lod {name} ({}): {} vertices, {} faces, {} sections, {} selections ({components} components)",
-                general(lod.resolution, 9),
+                crate::dotnet_fmt::general(lod.resolution, 9),
                 lod.vertices.len(),
                 lod.faces.len(),
                 lod.sections.len(),

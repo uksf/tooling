@@ -20,14 +20,6 @@ fn point(lod: &mut Lod, p: [f32; 3], normal: u32) -> Result<i32, String> {
     lod_edit::append_vertex(lod, p, CLIP_ALL, normal.to_le_bytes(), empty_bone())
 }
 
-pub fn sequence(seq: i32) -> String {
-    if seq < 0 {
-        format!("-{:03}", seq.unsigned_abs())
-    } else {
-        format!("{seq:03}")
-    }
-}
-
 pub(crate) fn proxy_section(face_bytes: i32) -> Section {
     Section {
         face_lower: 0,
@@ -93,7 +85,11 @@ pub fn add_memory_proxies(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8
                 PROXY_NORMAL,
             )?;
             faces.push(vec![v0 + 1, v0, v0 + 2]);
-            let name = format!("proxy:{}.{}", text(&sp.model), sequence(sp.sequence));
+            let name = format!(
+                "proxy:{}.{}",
+                text(&sp.model),
+                crate::dotnet_fmt::pad3(sp.sequence)
+            );
             let face = i32::try_from(faces.len() - 1).map_err(|_| "too many faces")?;
             mem.selections.push(lod_edit::new_selection(
                 latin1(&name)?,

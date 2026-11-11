@@ -86,7 +86,10 @@ fn append(
                     .min_by(|a, b| (*a - p).len().total_cmp(&(*b - p).len()))
                     .ok_or("no weld targets")?;
                 if (nearest - p).len() >= 0.006 {
-                    return Err(format!("no barrel vertex within 6 mm of weld point {p:?}"));
+                    return Err(format!(
+                        "no barrel vertex within 6 mm of weld point {}",
+                        crate::dotnet_fmt::vector3([p.0, p.1, p.2])
+                    ));
                 }
                 pts.push(nearest);
             } else {
