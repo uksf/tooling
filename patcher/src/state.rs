@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    fs::{self, File},
-    io::Write,
+    fs::{self, OpenOptions},
+    io::{ErrorKind, Write},
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -42,22 +43,61 @@ pub fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
+static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let mut temp = path.as_os_str().to_os_string();
-    temp.push(".uksf-patcher.tmp");
-    let temp = PathBuf::from(temp);
-    let mut file = File::create(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
-    file.write_all(bytes)
-        .and_then(|_| file.sync_all())
-        .map_err(|e| format!("{}: {e}", temp.display()))?;
+    let (temp, mut file) = loop {
+        let mut name = path.as_os_str().to_os_string();
+        name.push(format!(
+            ".uksf-patcher.{}.{}.tmp",
+            std::process::id(),
+            NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
+        ));
+        let temp = PathBuf::from(name);
+        match OpenOptions::new().write(true).create_new(true).open(&temp) {
+            Ok(file) => break (temp, file),
+            Err(e) if e.kind() == ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(format!("{}: {e}", temp.display())),
+        }
+    };
+    let result = file.write_all(bytes).and_then(|_| file.sync_all());
     drop(file);
-    fs::rename(&temp, path).map_err(|e| format!("{}: {e}", path.display()))
+    let result = result.and_then(|_| fs::rename(&temp, path));
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result.map_err(|e| format!("{}: {e}", path.display()))
+}
+
+pub struct RunLock {
+    path: PathBuf,
+    created_dir: bool,
+}
+
+impl Drop for RunLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+        if self.created_dir {
+            let _ = fs::remove_dir(self.path.parent().unwrap());
+        }
+    }
 }
 
 pub struct Store {
     pub dir: PathBuf,
 }
 impl Store {
+    pub fn lock(&self) -> Result<RunLock, String> {
+        let created_dir = !self.dir.exists();
+        fs::create_dir_all(&self.dir).map_err(|e| format!("{}: {e}", self.dir.display()))?;
+        let path = self.dir.join(".uksf-patcher.lock");
+        OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .map_err(|e| format!("cannot acquire lock {}: {e}", path.display()))?;
+        Ok(RunLock { path, created_dir })
+    }
     pub fn state_path(&self, pbo: &str) -> PathBuf {
         self.dir.join(format!("{pbo}.state.json"))
     }

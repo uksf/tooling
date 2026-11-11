@@ -16,6 +16,7 @@ pub struct Runner {
 }
 impl Runner {
     pub fn apply(&self, dry: bool) -> Result<u8, String> {
+        let _lock = self.store.lock()?;
         let manifests = Manifest::load_all(&self.patches)?;
         for manifest in &manifests {
             self.apply_one(manifest, dry)?;
@@ -31,6 +32,7 @@ impl Runner {
         Ok(0)
     }
     pub fn verify(&self) -> Result<u8, String> {
+        let _lock = self.store.lock()?;
         let manifests = Manifest::load_all(&self.patches)?;
         let mut problems = 0;
         for manifest in &manifests {
