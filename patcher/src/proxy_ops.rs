@@ -69,7 +69,6 @@ fn restore(model: &mut Model, op: &Value) -> Result<(), String> {
         if missing.is_empty() {
             return Err(format!("LOD {name} already has every matching proxy"));
         }
-        let existing = model.lods[dest].proxies.len();
         for source in missing {
             let wanted = [
                 &b"proxy:"[..],
@@ -87,7 +86,8 @@ fn restore(model: &mut Model, op: &Value) -> Result<(), String> {
                         crate::op_json::text(&wanted)
                     )
                 })?;
-            let section = if let Some(sibling) = model.lods[dest].proxies[..existing]
+            let section = if let Some(sibling) = model.lods[dest]
+                .proxies
                 .iter()
                 .find(|p| same(&p.model, &source.model))
             {

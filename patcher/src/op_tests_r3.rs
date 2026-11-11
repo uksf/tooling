@@ -7,9 +7,9 @@ use serde_json::json;
 const ROUND: &[u8] = include_bytes!("../tests/data/round.p3d");
 const SCOPE: &[u8] = include_bytes!("../tests/data/scope.p3d");
 
-fn proxy(sequence: i32, section: i32) -> Proxy {
+fn proxy(model: &[u8], sequence: i32, section: i32) -> Proxy {
     Proxy {
-        model: b"p".to_vec(),
+        model: model.to_vec(),
         transform: [0.0; 12],
         sequence,
         selection: 0,
@@ -18,7 +18,7 @@ fn proxy(sequence: i32, section: i32) -> Proxy {
     }
 }
 
-fn two_scope_lods(dest_texture: Option<(usize, i16)>) -> Vec<u8> {
+fn two_scope_lods(second: &[u8], edit: impl FnOnce(&mut Model)) -> Vec<u8> {
     let scope = Model::parse(SCOPE).unwrap();
     let mut m = Model::parse(ROUND).unwrap();
     m.lods[0] = scope.lods[0].duplicate(1.0).unwrap();
@@ -30,44 +30,64 @@ fn two_scope_lods(dest_texture: Option<(usize, i16)>) -> Vec<u8> {
     from.proxies = vec![
         Proxy {
             selection: at,
-            ..proxy(1, 0)
+            ..proxy(b"p", 1, 0)
         },
         Proxy {
             selection: at,
-            ..proxy(2, 2)
+            ..proxy(second, 2, 2)
         },
     ];
+    let second_name = [&b"proxy:"[..], second, b".002"].concat();
     let dest = &mut m.lods[1];
-    for name in ["proxy:p.001", "proxy:p.002"] {
-        let s = lod_edit::new_selection(name.as_bytes().to_vec(), false, &[], &[], &[]).unwrap();
-        dest.selections.push(s);
+    for name in [b"proxy:p.001".to_vec(), second_name] {
+        dest.selections
+            .push(lod_edit::new_selection(name, false, &[], &[], &[]).unwrap());
     }
-    if let Some((section, texture)) = dest_texture {
-        dest.sections[section].texture = texture;
-    }
+    edit(&mut m);
     m.write().unwrap()
 }
 
-fn restore(bytes: &[u8]) -> Result<Vec<u8>, String> {
+fn placed(bytes: &[u8]) -> Vec<(i32, i32)> {
     let op = json!({"from":"1","lods":["2"],"filter":"p"});
-    proxy_ops::restore_lod_proxies(bytes, &op, "t")
+    let out = proxy_ops::restore_lod_proxies(bytes, &op, "t").unwrap();
+    let dest = &Model::parse(&out).unwrap().lods[1];
+    dest.proxies
+        .iter()
+        .map(|p| (p.sequence, p.section))
+        .collect()
 }
 
 #[test]
-fn restore_lod_proxies_ignores_proxies_added_in_the_same_lod() {
-    let out = restore(&two_scope_lods(None)).unwrap();
-    let dest = &Model::parse(&out).unwrap().lods[1];
-    let placed: Vec<_> = dest
-        .proxies
-        .iter()
-        .map(|p| (p.sequence, p.section))
-        .collect();
-    assert_eq!(placed, [(1, 0), (2, 2)]);
+fn restore_lod_proxies_takes_a_sibling_added_earlier_in_the_same_lod() {
+    assert_eq!(placed(&two_scope_lods(b"p", |_| {})), [(1, 0), (2, 0)]);
+}
+
+#[test]
+fn restore_lod_proxies_skips_the_texture_search_for_a_sibling_added_earlier() {
+    let bytes = two_scope_lods(b"p", |m| {
+        let from = &mut m.lods[0];
+        from.textures.push(b"nowhere.paa".to_vec());
+        from.sections[2].texture = from.textures.len() as i16 - 1;
+    });
+    assert_eq!(placed(&bytes), [(1, 0), (2, 0)]);
+}
+
+#[test]
+fn restore_lod_proxies_matches_a_sibling_model_ignoring_case() {
+    assert_eq!(placed(&two_scope_lods(b"P", |_| {})), [(1, 0), (2, 0)]);
+}
+
+#[test]
+fn restore_lod_proxies_takes_an_initially_present_sibling() {
+    let bytes = two_scope_lods(b"p", |m| m.lods[1].proxies = vec![proxy(b"p", 3, 1)]);
+    assert_eq!(placed(&bytes), [(3, 1), (1, 1), (2, 1)]);
 }
 
 #[test]
 fn restore_lod_proxies_rejects_a_texture_index_past_the_end() {
-    let err = restore(&two_scope_lods(Some((1, 9)))).unwrap_err();
+    let bytes = two_scope_lods(b"pq", |m| m.lods[1].sections[1].texture = 9);
+    let op = json!({"from":"1","lods":["2"],"filter":"p"});
+    let err = proxy_ops::restore_lod_proxies(&bytes, &op, "t").unwrap_err();
     assert_eq!(err, "t: invalid texture");
 }
 
