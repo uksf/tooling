@@ -31,9 +31,10 @@ pub fn strip_animations(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
         let matched = |s: &[u8]| expected.iter().any(|e| crate::op_json::same(s, e));
         let found = |e: &str| sources.iter().any(|s| crate::op_json::same(s, e));
         if !sources.iter().all(|s| matched(s)) || !expected.iter().all(|e| found(e)) {
-            let sources: Vec<_> = sources.iter().map(|s| crate::op_json::text(s)).collect();
+            let sources = listed(sources.iter().map(|s| crate::op_json::text(s)));
+            let expected = listed(expected.iter().map(|s| s.to_string()));
             return Err(format!(
-                "the model's animation sources are {sources:?}, not {expected:?}"
+                "the model's animation sources are [{sources}], not [{expected}]"
             ));
         }
         let end = r.pos;
@@ -77,4 +78,14 @@ pub fn strip_animations(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
         Ok(out)
     };
     run().map_err(|e| format!("{label}: {e}"))
+}
+
+fn listed(names: impl Iterator<Item = String>) -> String {
+    let mut set: Vec<String> = Vec::new();
+    for name in names {
+        if !set.iter().any(|s| crate::op_json::same_text(s, &name)) {
+            set.push(name);
+        }
+    }
+    crate::culture_order::sorted(set).join(", ")
 }

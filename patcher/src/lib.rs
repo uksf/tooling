@@ -4,6 +4,7 @@ pub mod bind_ops;
 pub mod bone_ops;
 mod bound;
 pub mod component_ops;
+mod culture_order;
 pub mod cut_seams;
 mod cylinder_uv;
 pub mod dotnet_fmt;
@@ -42,6 +43,8 @@ mod op_tests_memory;
 mod op_tests_mesh;
 #[cfg(test)]
 mod op_tests_refs;
+#[cfg(test)]
+mod op_tests_strip;
 pub mod p3d_info;
 pub mod proxy_ops;
 pub mod remap_ops;

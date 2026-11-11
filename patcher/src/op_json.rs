@@ -100,6 +100,12 @@ pub fn same(a: &[u8], b: &str) -> bool {
         .eq(b.chars().map(ordinal_upper))
 }
 
+pub fn same_text(a: &str, b: &str) -> bool {
+    a.chars()
+        .map(ordinal_upper)
+        .eq(b.chars().map(ordinal_upper))
+}
+
 fn invariant_lower(c: char) -> char {
     let mut lower = c.to_lowercase();
     match (lower.next(), lower.next()) {
