@@ -10,7 +10,7 @@ pub fn source_json(op: &Value, base: &Path) -> Result<Value, String> {
     let source = string(op, "source")?;
     let bytes = std::fs::read(base.join(source))
         .map_err(|_| format!("source '{source}' does not exist"))?;
-    serde_json::from_slice(&bytes).map_err(|e| format!("source '{source}': {e}"))
+    crate::op_json::parse(&bytes).map_err(|e| format!("source '{source}': {e}"))
 }
 
 fn index(v: &Value) -> Result<i32, String> {
@@ -167,4 +167,25 @@ pub fn cut_seams(data: &[u8], op: &Value, label: &str, base: &Path) -> Result<Ve
         repoint_faces(lod, &plan, n0, &copies)?;
         lod_edit::refresh_rest(lod)
     })
+}
+
+#[test]
+fn source_json_rejects_a_wrapped_number_in_the_plan() {
+    let base = std::env::temp_dir().join(format!("patcher-plan-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    let op = serde_json::json!({"source":"plan.json"});
+    std::fs::write(
+        base.join("plan.json"),
+        r#"{"copies":[{"$serde_json::private::Number":"0"}]}"#,
+    )
+    .unwrap();
+    let wrapped = source_json(&op, &base);
+    std::fs::write(base.join("plan.json"), r#"{"copies":[0]}"#).unwrap();
+    let plain = source_json(&op, &base);
+    std::fs::remove_dir_all(&base).unwrap();
+    assert_eq!(
+        wrapped.unwrap_err(),
+        "source 'plan.json': the object key \"$serde_json::private::Number\" is not supported"
+    );
+    assert_eq!(plain.unwrap()["copies"][0].as_i64(), Some(0));
 }

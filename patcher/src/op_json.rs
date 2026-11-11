@@ -1,6 +1,41 @@
 use crate::odol::Model;
 use serde_json::Value;
 
+const RESERVED_KEY: &str = "$serde_json::private::Number";
+
+pub fn parse(json: &[u8]) -> Result<Value, String> {
+    let value = serde_json::from_slice(json).map_err(|e| e.to_string())?;
+    if has_reserved_key(json) {
+        return Err(format!(
+            "the object key \"{RESERVED_KEY}\" is not supported"
+        ));
+    }
+    Ok(value)
+}
+
+fn has_reserved_key(json: &[u8]) -> bool {
+    let mut i = 0;
+    while i < json.len() {
+        if json[i] != b'"' {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        i += 1;
+        while json[i] != b'"' {
+            i += if json[i] == b'\\' { 2 } else { 1 };
+        }
+        i += 1;
+        let is_key = json[i..].iter().find(|b| !b.is_ascii_whitespace()) == Some(&b':');
+        if is_key
+            && serde_json::from_slice::<String>(&json[start..i]).is_ok_and(|k| k == RESERVED_KEY)
+        {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn string<'a>(op: &'a Value, name: &str) -> Result<&'a str, String> {
     op.get(name)
         .and_then(Value::as_str)
@@ -205,4 +240,19 @@ fn json_fields_follow_system_text_json_getters() {
     assert!(float(&op, "g").is_err());
     assert!(optional_bool(&op, "h").is_err());
     assert_eq!(optional_bool(&op, "missing"), Ok(None));
+}
+
+#[test]
+fn parse_rejects_only_the_reserved_number_key() {
+    let wrapped = br#"{"copies":[{"$serde_json::private::Number":"1"}]}"#;
+    let err = parse(wrapped).unwrap_err();
+    assert!(err.contains("is not supported"), "{err}");
+    let spaced = br#"{"a":[{ "\u0024serde_json::private::Number" : "1"}]}"#;
+    assert!(parse(spaced).is_err());
+    let op = parse(br#"{"f":1.0000000596046447753906250001,"c":-0,"d":-0.0,"s":"\"$serde_json::private::Number\":"}"#).unwrap();
+    assert_eq!(float(&op, "f").map(f32::to_bits), Ok(0x3f80_0001));
+    assert_eq!(int(&op, "c", 9), Ok(0));
+    assert!(int(&op, "d", 9).is_err());
+    assert_eq!(float(&op, "d").map(f32::to_bits), Ok(0x8000_0000));
+    assert_eq!(string(&op, "s"), Ok(r#""$serde_json::private::Number":"#));
 }

@@ -110,7 +110,7 @@ impl Manifest {
         let bytes = fs::read(file).map_err(|e| format!("{}: {e}", file.display()))?;
         let json = without_comments(&bytes)
             .map_err(|e| format!("{}: invalid JSON: {e}", file.display()))?;
-        let root: Value = serde_json::from_slice(&json)
+        let root = crate::op_json::parse(&json)
             .map_err(|e| format!("{}: invalid JSON: {e}", file.display()))?;
         if root.get("format").and_then(Value::as_i64) != Some(1) {
             return Err(format!("{}: \"format\" must be 1", file.display()));
