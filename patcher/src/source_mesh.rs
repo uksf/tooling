@@ -98,13 +98,16 @@ fn numbers(op: &Value, name: &str, n: usize) -> Result<Vec<f32>, String> {
         .filter(|a| a.len() == n)
         .ok_or_else(|| format!("invalid {name}"))?;
     a.iter()
-        .map(|v| {
-            v.as_f64()
-                .map(|x| x as f32)
-                .filter(|x| x.is_finite())
-                .ok_or_else(|| format!("invalid {name}"))
-        })
+        .map(|v| crate::op_json::single(v).ok_or_else(|| format!("invalid {name}")))
         .collect()
+}
+fn any_hit(items: impl IntoIterator<Item = Result<bool, String>>) -> Result<bool, String> {
+    for hit in items {
+        if hit? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 fn key(p: V) -> (i32, i32, i32) {
     (
@@ -169,47 +172,52 @@ pub fn load(data: &[u8], op: &Value, frame: &Frame) -> Result<Mesh, String> {
     };
     let scale = axis_common::number(op, "scale")?;
     let attach = target_origin + dir * axis_common::number(op, "attachAlong")?;
-    let loops = op
-        .get("loopRadii")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+    let loops = match op.get("loopRadii") {
+        Some(v) => v.as_array().ok_or("invalid loopRadii")?.as_slice(),
+        None => &[],
+    };
     let weld = op
         .get("weldLoops")
         .and_then(Value::as_array)
         .ok_or("missing weldLoops")?;
-    let on_loop = |p: V, l: &Value| -> bool {
-        let Some(a) = l.as_array() else { return false };
-        if a.len() < 2 {
-            return false;
-        }
-        let Some(x) = a[0].as_f64() else { return false };
-        let Some(r) = a[1].as_f64() else { return false };
+    let on_loop = |p: V, l: &Value| -> Result<bool, String> {
+        let get = |i: usize| {
+            l.get(i)
+                .and_then(crate::op_json::single)
+                .ok_or_else(|| format!("invalid add-mesh loop {l}"))
+        };
         let rel = p - origin;
         let along = rel.dot(fwd);
-        (along - (x as f32 - origin.dot(fwd))).abs() < 5e-4
-            && ((rel - fwd * along).len() - r as f32).abs() < 5e-4
+        let near_plane = (along - (get(0)? - origin.dot(fwd))).abs() < 5e-4;
+        if !near_plane {
+            return Ok(false);
+        }
+        Ok(((rel - fwd * along).len() - get(1)?).abs() < 5e-4)
     };
-    if weld.iter().any(|l| !src.iter().any(|&p| on_loop(p, l))) {
-        return Err("an add-mesh weld loop matches no source point".into());
-    }
-    let welded = src
-        .iter()
-        .map(|&p| weld.iter().any(|l| on_loop(p, l)))
-        .collect();
     let mut points = Vec::new();
     for &p in &src {
         let rel = p - origin;
         let axial = fwd * rel.dot(fwd);
         let mut radial = (rel - axial) * scale;
-        for l in loops.iter().filter(|l| on_loop(p, l)) {
-            let radius = l
-                .get(2)
-                .and_then(Value::as_f64)
-                .ok_or("invalid loop radius")? as f32;
-            radial = radial.unit() * radius;
+        for l in loops {
+            if on_loop(p, l)? {
+                let radius = l
+                    .get(2)
+                    .and_then(crate::op_json::single)
+                    .ok_or("invalid loop radius")?;
+                radial = radial.unit() * radius;
+            }
         }
         points.push(attach + rotate(axial * scale + radial));
+    }
+    let welded = src
+        .iter()
+        .map(|&p| any_hit(weld.iter().map(|l| on_loop(p, l))))
+        .collect::<Result<Vec<_>, _>>()?;
+    for l in weld {
+        if !any_hit(src.iter().map(|&p| on_loop(p, l)))? {
+            return Err("an add-mesh weld loop matches no source point".into());
+        }
     }
     let mut tris = Vec::new();
     for f in faces {

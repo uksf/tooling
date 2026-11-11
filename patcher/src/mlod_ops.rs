@@ -239,7 +239,8 @@ pub fn remove_degenerate_faces(data: &[u8], op: &Value, label: &str) -> Result<V
             return Err("MLOD has trailing data".into());
         }
         if let Some(expected) = op.get("expectedRemoved") {
-            let expected = expected.as_i64().ok_or("invalid expectedRemoved")?;
+            let expected =
+                i64::from(crate::op_json::int32(expected).ok_or("invalid expectedRemoved")?);
             if expected != removed as i64 {
                 return Err(format!(
                     "expected to remove {expected} degenerate faces, found {removed}"

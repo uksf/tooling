@@ -11,21 +11,36 @@ pub fn optional_string<'a>(op: &'a Value, name: &str) -> Result<Option<&'a str>,
     op.get(name).map(|_| string(op, name)).transpose()
 }
 
+pub fn int32(v: &Value) -> Option<i32> {
+    v.as_i64().and_then(|n| i32::try_from(n).ok())
+}
+
 pub fn int(op: &Value, name: &str, fallback: i32) -> Result<i32, String> {
     op.get(name).map_or(Ok(fallback), |v| {
-        v.as_i64()
-            .and_then(|n| i32::try_from(n).ok())
-            .ok_or_else(|| format!("op needs \"{name}\" as an integer: {op}"))
+        int32(v).ok_or_else(|| format!("op needs \"{name}\" as an integer: {op}"))
     })
 }
 
-fn finite(v: &Value) -> Option<f32> {
-    v.as_f64().map(|x| x as f32).filter(|x| x.is_finite())
+pub fn optional_bool(op: &Value, name: &str) -> Result<Option<bool>, String> {
+    op.get(name)
+        .map(|v| {
+            v.as_bool()
+                .ok_or_else(|| format!("op needs \"{name}\" as true or false: {op}"))
+        })
+        .transpose()
+}
+
+pub fn single(v: &Value) -> Option<f32> {
+    v.as_number()?
+        .to_string()
+        .parse::<f32>()
+        .ok()
+        .filter(|x| x.is_finite())
 }
 
 pub fn float(op: &Value, name: &str) -> Result<f32, String> {
     op.get(name)
-        .and_then(finite)
+        .and_then(single)
         .ok_or_else(|| format!("op is missing a finite number \"{name}\": {op}"))
 }
 
@@ -33,7 +48,7 @@ pub fn floats(op: &Value, name: &str, count: usize) -> Result<Vec<f32>, String> 
     op.get(name)
         .and_then(Value::as_array)
         .filter(|a| a.len() == count)
-        .and_then(|a| a.iter().map(finite).collect::<Option<Vec<_>>>())
+        .and_then(|a| a.iter().map(single).collect::<Option<Vec<_>>>())
         .ok_or_else(|| format!("op needs \"{name}\" as an array of {count} finite numbers: {op}"))
 }
 
@@ -41,6 +56,23 @@ pub fn strings<'a>(op: &'a Value, name: &str) -> Result<Vec<&'a str>, String> {
     op.get(name)
         .and_then(Value::as_array)
         .and_then(|a| a.iter().map(Value::as_str).collect::<Option<Vec<_>>>())
+        .ok_or_else(|| format!("op is missing string array \"{name}\": {op}"))
+}
+
+pub fn nullable_strings<'a>(op: &'a Value, name: &str) -> Result<Vec<Option<&'a str>>, String> {
+    op.get(name)
+        .and_then(Value::as_array)
+        .and_then(|a| {
+            a.iter()
+                .map(|v| {
+                    if v.is_null() {
+                        Some(None)
+                    } else {
+                        v.as_str().map(Some)
+                    }
+                })
+                .collect::<Option<Vec<_>>>()
+        })
         .ok_or_else(|| format!("op is missing string array \"{name}\": {op}"))
 }
 
@@ -150,4 +182,21 @@ fn same_lowered_matches_dotnet_lower_invariant_then_exact() {
     assert!(!same_lowered(&[0xB5], &lower_invariant("\u{03BC}")));
     assert!(same(&[0xB5], "\u{03BC}"));
     assert!(same_lowered(b"k", &lower_invariant("\u{212A}")));
+}
+
+#[test]
+fn json_fields_follow_system_text_json_getters() {
+    let op: Value =
+        serde_json::from_str(r#"{"a":1.5,"b":1099511627776,"c":-0,"d":"7","e":2147483647,"f":1.0000000596046447753906250001,"g":1e39,"h":null}"#)
+            .unwrap();
+    assert!(int(&op, "a", 0).is_err());
+    assert!(int(&op, "b", 0).is_err());
+    assert_eq!(int(&op, "c", 9), Ok(0));
+    assert!(int(&op, "d", 0).is_err());
+    assert_eq!(int(&op, "e", 0), Ok(i32::MAX));
+    assert_eq!(int(&op, "missing", -1), Ok(-1));
+    assert_eq!(float(&op, "f").map(f32::to_bits), Ok(0x3f80_0001));
+    assert!(float(&op, "g").is_err());
+    assert!(optional_bool(&op, "h").is_err());
+    assert_eq!(optional_bool(&op, "missing"), Ok(None));
 }

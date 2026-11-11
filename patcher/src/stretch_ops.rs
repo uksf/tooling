@@ -39,6 +39,9 @@ pub(crate) fn grow(model: &mut Model, i: usize) {
 }
 fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
     let frame = Frame::from(op)?;
+    if op.get("bones").is_some() {
+        crate::op_json::nullable_strings(op, "bones")?;
+    }
     let max_radius = if op.get("maxRadius").is_some() {
         axis_common::number(op, "maxRadius")?
     } else {
@@ -46,6 +49,7 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
     };
     let cut = axis_common::number(op, "cut")?;
     let length = axis_common::number(op, "length")?;
+    let expected = crate::op_json::int(op, "vertices", -1)?;
     let shift = frame.direction.map(|x| x * length);
     let lods = op
         .get("lods")
@@ -85,7 +89,6 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
         }
         grow(model, index);
     }
-    let expected = op.get("vertices").and_then(Value::as_i64).unwrap_or(-1);
     if moved != expected {
         return Err(format!(
             "stretch-along-axis moved {moved} vertices, the patch expects {expected}"

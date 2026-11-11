@@ -67,14 +67,7 @@ fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result
         "text-replace" => {
             let find = op_string(op, "find")?;
             let replace = op_string(op, "replace")?;
-            let count = op
-                .get("count")
-                .map(|v| {
-                    v.as_u64()
-                        .ok_or("text-replace count must be a non-negative integer")
-                })
-                .transpose()?
-                .unwrap_or(1);
+            let count = crate::op_json::int(op, "count", 1)?;
             file_ops::text_replace(
                 data,
                 find,

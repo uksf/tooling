@@ -12,11 +12,7 @@ pub struct Island {
 
 fn row(e: &Value, width: usize) -> Option<Vec<f32>> {
     let a = e.as_array().filter(|a| a.len() == width)?;
-    let values = a
-        .iter()
-        .map(|x| x.as_f64().map(|v| v as f32))
-        .collect::<Option<Vec<_>>>()?;
-    values.iter().all(|v| v.is_finite()).then_some(values)
+    a.iter().map(crate::op_json::single).collect()
 }
 
 fn rows(
@@ -77,7 +73,7 @@ fn island(e: &Value, vertex_count: usize) -> Result<Island, String> {
     }
     let s = e
         .get("s")
-        .map_or(Some(1.0), |v| v.as_f64().map(|x| x as f32))
+        .map_or(Some(1.0), crate::op_json::single)
         .ok_or("has a non-numeric \"s\"")?;
     let bounds = pair(e, "box")?;
     let pos = pair(e, "pos")?;

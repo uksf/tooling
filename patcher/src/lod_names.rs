@@ -16,9 +16,8 @@ pub fn resolution(name: &str) -> Result<f32, String> {
         "viewgeometrypilot" => 1.3e16,
         "viewgeometrygunner" => 1.5e16,
         _ => {
-            let n = name
-                .parse::<f32>()
-                .map_err(|_| format!("unknown LOD name '{name}'"))?;
+            let n = crate::dotnet_parse::parse_float(name)
+                .ok_or_else(|| format!("unknown LOD name '{name}'"))?;
             if !(0.0..1e13).contains(&n) {
                 return Err(format!("unknown LOD name '{name}'"));
             }

@@ -82,18 +82,15 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
     let bound = axis_common::bound(model, &model.lods[index], op)?;
     let all = axis_common::number(op, "allBeyond")?;
     let any = axis_common::number(op, "anyBeyond")?;
-    let expected = op.get("faces").and_then(Value::as_i64).unwrap_or(-1);
+    let expected = crate::op_json::int(op, "faces", -1)?;
+    let whole_parts = crate::op_json::optional_bool(op, "wholeParts")?;
     let lod = &mut model.lods[index];
     let along = lod
         .vertices
         .iter()
         .map(|&p| frame.along(p))
         .collect::<Vec<_>>();
-    let parts = op
-        .get("wholeParts")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-        .then(|| parts(lod, &bound));
+    let parts = whole_parts.unwrap_or(false).then(|| parts(lod, &bound));
     let old_ranges = ranges(lod)?;
     let mut kept = Vec::new();
     let mut indices = vec![-1; lod.faces.len()];
@@ -118,7 +115,7 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
         new_ranges.push((start, kept.len()));
     }
     let removed = lod.faces.len() - kept.len();
-    if removed as i64 != expected {
+    if removed as i64 != i64::from(expected) {
         return Err(format!(
             "remove-faces matches {removed} faces in LOD {name}, the patch expects {expected}"
         ));

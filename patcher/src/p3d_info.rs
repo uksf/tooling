@@ -61,12 +61,7 @@ pub fn run(path: &str, asset: &str, lod_name: Option<&str>) -> Result<u8, String
         println!("  bone {} <- {}", text(&bone.name), text(&bone.parent));
     }
     if let Some(name) = lod_name {
-        let resolution = SPECIAL
-            .iter()
-            .find(|(n, _)| n.eq_ignore_ascii_case(name))
-            .map(|(_, r)| *r)
-            .or_else(|| name.parse::<f32>().ok().filter(|r| *r >= 0.0 && *r < 1e13))
-            .ok_or_else(|| format!("unknown LOD name '{name}'"))?;
+        let resolution = crate::lod_names::resolution(name)?;
         let mut found = model
             .lods
             .iter()

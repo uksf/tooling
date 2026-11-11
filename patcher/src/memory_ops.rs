@@ -18,18 +18,8 @@ pub fn split_memory_point(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8
         }
         let name = string(op, "name")?;
         let donor_name = string(op, "boneFrom")?;
-        let p = op
-            .get("position")
-            .and_then(Value::as_array)
-            .filter(|v| v.len() == 3)
-            .ok_or("op needs position as an array of 3 finite numbers")?;
-        let mut position = [0.0; 3];
-        for (i, v) in p.iter().enumerate() {
-            position[i] = v.as_f64().ok_or("invalid position")? as f32;
-            if !position[i].is_finite() {
-                return Err("invalid position".into());
-            }
-        }
+        let p = crate::op_json::floats(op, "position", 3)?;
+        let position = [p[0], p[1], p[2]];
         let wanted = resolution("memory")?;
         let found: Vec<_> = model
             .lods

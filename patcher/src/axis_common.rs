@@ -10,14 +10,7 @@ pub fn string<'a>(v: &'a Value, key: &str) -> Result<&'a str, String> {
         .ok_or_else(|| format!("missing string {key}"))
 }
 pub fn number(v: &Value, key: &str) -> Result<f32, String> {
-    let n = v
-        .get(key)
-        .and_then(Value::as_f64)
-        .ok_or_else(|| format!("missing number {key}"))? as f32;
-    if !n.is_finite() {
-        return Err(format!("invalid number {key}"));
-    }
-    Ok(n)
+    crate::op_json::float(v, key)
 }
 pub fn lod_index(model: &Model, name: &str) -> Result<usize, String> {
     let n = resolution(name)?;
@@ -39,18 +32,7 @@ pub struct Frame {
 }
 impl Frame {
     pub fn from(op: &Value) -> Result<Self, String> {
-        let a = op
-            .get("axis")
-            .and_then(Value::as_array)
-            .filter(|a| a.len() == 6)
-            .ok_or("invalid axis")?;
-        let mut v = [0.; 6];
-        for (i, x) in a.iter().enumerate() {
-            v[i] = x.as_f64().ok_or("invalid axis")? as f32;
-            if !v[i].is_finite() {
-                return Err("invalid axis".into());
-            }
-        }
+        let v = crate::op_json::floats(op, "axis", 6)?;
         let length = (v[3] * v[3] + v[4] * v[4] + v[5] * v[5]).sqrt();
         if length < 1e-6 {
             return Err("axis direction is zero".into());

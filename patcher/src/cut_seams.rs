@@ -93,9 +93,8 @@ fn repoint_faces(lod: &mut Lod, plan: &Value, n0: usize, copies: &[usize]) -> Re
             .and_then(Value::as_object)
             .ok_or("cut-seams face needs a \"map\"")?;
         for (from, to) in map {
-            let from: i32 = from
-                .parse()
-                .map_err(|_| format!("cut-seams map key '{from}' is not a vertex"))?;
+            let from = crate::dotnet_parse::parse_int(from)
+                .ok_or_else(|| format!("cut-seams map key '{from}' is not a vertex"))?;
             let to = index(to)?;
             let k = lod.faces[f]
                 .iter()
