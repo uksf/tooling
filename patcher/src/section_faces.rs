@@ -45,7 +45,17 @@ pub fn sections(lod: &Lod, name: &str) -> Result<Vec<usize>, String> {
     }
     s.sections
         .iter()
-        .map(|&x| usize::try_from(x).map_err(|_| "invalid section".to_owned()))
+        .map(|&x| {
+            usize::try_from(x)
+                .ok()
+                .filter(|&index| index < lod.sections.len())
+                .ok_or_else(|| {
+                    format!(
+                        "selection '{name}' references invalid section {x} ({} sections)",
+                        lod.sections.len()
+                    )
+                })
+        })
         .collect()
 }
 

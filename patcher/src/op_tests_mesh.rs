@@ -131,6 +131,43 @@ fn bind_selection_weights_unbound_vertices_and_fits_the_window() {
 }
 
 #[test]
+fn named_section_references_are_checked_for_bind_and_translate() {
+    for index in [-1, 3] {
+        let mut model = Model::parse(&rigged(-1)).unwrap();
+        let lod = &mut model.lods[0];
+        lod.selections
+            .push(lod_edit::new_selection(b"bad".to_vec(), true, &[index], &[], &[]).unwrap());
+        let bytes = model.write().unwrap();
+        assert_eq!(Model::parse(&bytes).unwrap().write().unwrap(), bytes);
+        for (op, args) in [
+            (
+                bind_ops::bind_selection as Op,
+                json!({"lod":"0","selection":"bad","bone":"b"}),
+            ),
+            (
+                bind_ops::translate_selection as Op,
+                json!({"lod":"0","selection":"bad","offset":[0,0,1]}),
+            ),
+        ] {
+            let error = op(&bytes, &args, "t").unwrap_err();
+            assert!(
+                error.contains(&format!("invalid section {index}")),
+                "{error}"
+            );
+        }
+    }
+    let mut model = Model::parse(&rigged(-1)).unwrap();
+    let lod = &mut model.lods[0];
+    let last = lod.sections.len() as i32 - 1;
+    lod.selections
+        .push(lod_edit::new_selection(b"last".to_vec(), true, &[last], &[], &[]).unwrap());
+    assert_eq!(
+        crate::section_faces::sections(lod, "last").unwrap(),
+        vec![last as usize]
+    );
+}
+
+#[test]
 fn rebind_vertices_adds_a_sub_bone_and_moves_the_window() {
     let m = apply(
         bind_ops::rebind_vertices,
