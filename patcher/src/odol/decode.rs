@@ -63,7 +63,7 @@ pub fn bone_refs(raw: &[u8]) -> Result<Vec<BoneWeight>, String> {
 }
 
 pub fn scale_uv(value: i16, span: f64, min: f32) -> f32 {
-    (1.52587890625e-5 * (f64::from(value) + f64::from(i16::MAX)) * span + f64::from(min)) as f32
+    (1.52587890625e-5 * (f64::from(value) + f64::from(i16::MAX)) * span) as f32 + min
 }
 
 fn chunks<'a>(raw: &'a [u8], msg: &str) -> Result<&'a [[u8; 4]], String> {

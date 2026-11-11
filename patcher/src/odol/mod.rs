@@ -5,6 +5,7 @@ pub(crate) mod edit_arrays;
 mod info;
 mod io;
 mod lod;
+pub(crate) mod lod_edit;
 mod lzo;
 mod material;
 mod mesh;
@@ -33,6 +34,7 @@ pub struct Header {
     pub model_info_offset: usize,
 }
 
+#[derive(Clone)]
 pub struct BoneWeight {
     pub count: i32,
     pub data: [u8; 8],
@@ -227,6 +229,16 @@ impl Model {
         }
         w.set_pos(end);
         Ok(w.into_vec())
+    }
+
+    pub fn insert_lod(&mut self, at: usize, lod: Lod, permanent: u8, loadable: Option<Loadable>) {
+        self.lods.insert(at, lod);
+        self.permanent.insert(at, permanent);
+        self.loadable.insert(at, loadable);
+        self.order = (0..self.lods.len()).collect();
+        self.order
+            .sort_by(|&a, &b| self.lods[b].resolution.total_cmp(&self.lods[a].resolution));
+        self.gaps = vec![Vec::new(); self.lods.len()];
     }
 
     pub fn memory_lod(&self) -> Option<&Lod> {

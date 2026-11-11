@@ -57,6 +57,10 @@ fn op_string<'a>(op: &'a Value, name: &str) -> Result<&'a str, String> {
         .ok_or_else(|| format!("op is missing string \"{name}\": {op}"))
 }
 
+fn base(manifest: &Manifest) -> &std::path::Path {
+    manifest.file.parent().unwrap_or(std::path::Path::new(""))
+}
+
 fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result<Vec<u8>, String> {
     let name = op_string(op, "op")?;
     match name {
@@ -106,6 +110,22 @@ fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result
         "remove-degenerate-faces" => mlod_ops::remove_degenerate_faces(data, op, label),
         "restore-lod-proxies" => proxy_ops::restore_lod_proxies(data, op, label),
         "remap-proxies" => remap_ops::remap_proxies(data, op, label),
+        "set-animation-source" => crate::anim_ops::set_animation_source(data, op, label),
+        "add-translation" => crate::anim_ops::add_translation(data, op, label),
+        "bind-selection" => crate::bind_ops::bind_selection(data, op, label),
+        "rebind-vertices" => crate::bind_ops::rebind_vertices(data, op, label),
+        "translate-selection" => crate::bind_ops::translate_selection(data, op, label),
+        "add-memory-proxies" => crate::memory_edit_ops::add_memory_proxies(data, op, label),
+        "add-memory-point" => crate::memory_edit_ops::add_memory_point(data, op, label),
+        "set-memory-point" => crate::memory_edit_ops::set_memory_point(data, op, label),
+        "copy-selection-points" => crate::selection_ops::copy_selection_points(data, op, label),
+        "split-selection" => crate::selection_ops::split_selection(data, op, label),
+        "move-sections" => crate::selection_ops::move_sections(data, op, label),
+        "retexture" => crate::selection_ops::retexture(data, op, label),
+        "set-section-texture" => crate::selection_ops::set_section_texture(data, op, label),
+        "add-physx" => crate::physx_ops::add_physx(data, op, label),
+        "cut-seams" => crate::cut_seams::cut_seams(data, op, label, base(manifest)),
+        "uv-split" => crate::uv_split::uv_split(data, op, label, base(manifest)),
         "strip-animations" => crate::odol::strip::strip_animations(data, op, label),
         name if MODEL_OPS.contains(&name) => Err(format!("{label}: op not implemented: '{name}'")),
         _ => Err(format!(

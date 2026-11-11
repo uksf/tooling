@@ -13,6 +13,7 @@ pub struct Proxy {
     pub section: i32,
 }
 
+#[derive(Clone)]
 pub struct Section {
     pub face_lower: i32,
     pub face_upper: i32,

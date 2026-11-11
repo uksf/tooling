@@ -54,29 +54,7 @@ pub fn append(lod: &mut Lod, extra: Appended) -> Result<(), String> {
     lod.clip_origin = condensed(&clips, 4)?;
     for (set, uv) in lod.uv.iter_mut().zip(extra.uvs) {
         if let Some(uv) = uv {
-            let mut min = [f32::INFINITY; 2];
-            let mut max = [f32::NEG_INFINITY; 2];
-            for p in &uv {
-                for k in 0..2 {
-                    min[k] = min[k].min(p[k]);
-                    max[k] = max[k].max(p[k]);
-                }
-            }
-            for k in 0..2 {
-                max[k] = min[k] + (max[k] - min[k]) * 65536. / 65534.;
-            }
-            let mut raw = Vec::new();
-            for p in &uv {
-                for k in 0..2 {
-                    let q = (((p[k] - min[k]) / (max[k] - min[k])) as f64 * 65536. - 32767.)
-                        .round_ties_even()
-                        .clamp(-32767., 32767.) as i16;
-                    raw.extend(q.to_le_bytes());
-                }
-            }
-            set.min = min;
-            set.max = max;
-            set.data.origin = payload(&raw);
+            super::lod_edit::write_uv(set, &uv)?;
         }
         set.vertices = (old_count + count) as u32;
     }

@@ -6,6 +6,7 @@ use super::mesh::{self, Keyframe, Proxy, Section, Selection};
 use super::uv::UvSet;
 use super::write::Writer;
 
+#[derive(Clone)]
 pub struct Loadable {
     pub faces: i32,
     pub color: u32,
