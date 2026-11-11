@@ -109,7 +109,9 @@ fn lookups_compare_strings_not_encoded_bytes() {
     );
 }
 
-fn apply(op: fn(&[u8], &Value, &str) -> Result<Vec<u8>, String>, args: Value) -> Model {
+type Op = fn(&[u8], &Value, &str) -> Result<Vec<u8>, String>;
+
+fn apply(op: Op, args: Value) -> Model {
     Model::parse(&op(RHICC, &args, "t").unwrap()).unwrap()
 }
 
