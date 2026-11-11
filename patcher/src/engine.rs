@@ -54,10 +54,31 @@ const MODEL_OPS: &[&str] = &[
     "rebuild-shadow-volume",
 ];
 
-fn latin1(s: &str) -> Result<Vec<u8>, String> {
+fn latin1_strict(s: &str) -> Result<Vec<u8>, String> {
     s.chars()
         .map(|c| u8::try_from(c as u32).map_err(|_| "character outside Latin-1".to_owned()))
         .collect()
+}
+
+fn lookup_path(s: &str) -> Option<Vec<u8>> {
+    s.chars()
+        .map(|c| {
+            let mut lower = c.to_lowercase();
+            let single = match (u8::try_from(c as u32), lower.next(), lower.next()) {
+                (Ok(b), _, _) => return Some(b),
+                (_, Some(l), None) => l,
+                _ => return None,
+            };
+            u8::try_from(single as u32).ok()
+        })
+        .collect()
+}
+
+fn find_source(pbo: &Pbo, label: &str, source: &str) -> Result<Option<usize>, String> {
+    lookup_path(source).map_or(Ok(None), |bytes| {
+        pbo.find(&bytes)
+            .map_err(|e| format!("{label}: cannot parse: {e}"))
+    })
 }
 
 fn op_string<'a>(op: &'a Value, name: &str) -> Result<&'a str, String> {
@@ -159,10 +180,7 @@ pub fn patch(pristine: Vec<u8>, manifest: &Manifest) -> Result<Vec<u8>, String> 
     for asset in &manifest.assets {
         let label = format!("{}:{}", manifest.pbo, asset.path);
         let source = asset.copy_of.as_deref().unwrap_or(&asset.path);
-        let source_bytes = latin1(source).map_err(|e| format!("{label}: {e}"))?;
-        let index = pbo
-            .find(&source_bytes)
-            .map_err(|e| format!("{label}: cannot parse: {e}"))?
+        let index = find_source(&pbo, &label, source)?
             .ok_or_else(|| format!("{}: asset '{source}' is not in the PBO", manifest.pbo))?;
         if let std::collections::hash_map::Entry::Vacant(entry) = pinned.entry(index) {
             let data = pbo
@@ -184,15 +202,12 @@ pub fn patch(pristine: Vec<u8>, manifest: &Manifest) -> Result<Vec<u8>, String> 
     for asset in &manifest.assets {
         let label = format!("{}:{}", manifest.pbo, asset.path);
         let source = asset.copy_of.as_deref().unwrap_or(&asset.path);
-        let source_bytes = latin1(source).map_err(|e| format!("{label}: {e}"))?;
-        let index = pbo
-            .find(&source_bytes)
-            .map_err(|e| format!("{label}: cannot parse: {e}"))?
+        let index = find_source(&pbo, &label, source)?
             .ok_or_else(|| format!("{}: asset '{source}' is not in the PBO", manifest.pbo))?;
         let mut target = Vec::new();
         if asset.copy_of.is_some() {
             target =
-                pbo.entry_name(&latin1(&asset.path).map_err(|e| {
+                pbo.entry_name(&latin1_strict(&asset.path).map_err(|e| {
                     format!("{label}: copy target is not a valid PBO entry name: {e}")
                 })?);
             if target.is_empty()

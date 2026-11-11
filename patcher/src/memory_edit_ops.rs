@@ -1,7 +1,7 @@
 use crate::{
     axis_common::lod_index,
     odol::{BoneWeight, Lod, Proxy, Section, edit_arrays::set_vertices, lod_edit},
-    op_json::{contains, edit, floats, latin1, same, string, text},
+    op_json::{contains, edit, floats, latin1_lossy, same, string, text},
 };
 use serde_json::Value;
 
@@ -92,7 +92,7 @@ pub fn add_memory_proxies(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8
             );
             let face = i32::try_from(faces.len() - 1).map_err(|_| "too many faces")?;
             mem.selections.push(lod_edit::new_selection(
-                latin1(&name)?,
+                latin1_lossy(&name),
                 false,
                 &[],
                 &[face],
@@ -129,7 +129,7 @@ pub fn add_memory_point(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
             return Err(format!("memory LOD already has selection '{name}'"));
         }
         let v = point(mem, [p[0], p[1], p[2]], 0)?;
-        let selection = lod_edit::new_selection(latin1(name)?, false, &[], &[], &[v])?;
+        let selection = lod_edit::new_selection(latin1_lossy(name), false, &[], &[], &[v])?;
         mem.selections.push(selection);
         Ok(())
     })

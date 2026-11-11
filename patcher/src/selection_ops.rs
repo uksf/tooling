@@ -1,7 +1,7 @@
 use crate::{
     axis_common::lod_index,
     odol::{Lod, lod_edit},
-    op_json::{edit, float, int, latin1, same, string, strings},
+    op_json::{edit, float, int, latin1_lossy, same, string, strings},
     section_faces::selection,
 };
 use serde_json::Value;
@@ -122,7 +122,7 @@ pub fn split_selection(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
             ));
         }
         lod_edit::set_selection_vertices(&mut lod.selections[index], below)?;
-        let selection = lod_edit::new_selection(latin1(into)?, false, &[], &[], &above)?;
+        let selection = lod_edit::new_selection(latin1_lossy(into), false, &[], &[], &above)?;
         lod.selections.push(selection);
         Ok(())
     })
@@ -162,7 +162,8 @@ pub fn move_sections(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, St
                 .collect();
             lod_edit::set_selection_sections(n, kept)?;
         }
-        let selection = lod_edit::new_selection(latin1(new_selection)?, true, &secs, &[], &[])?;
+        let selection =
+            lod_edit::new_selection(latin1_lossy(new_selection), true, &secs, &[], &[])?;
         lod.selections.push(selection);
         Ok(())
     })
@@ -171,11 +172,12 @@ pub fn move_sections(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, St
 pub fn retexture(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String> {
     edit(data, label, false, |model| {
         let from = string(op, "from")?;
-        let to = latin1(string(op, "to")?)?;
+        let to_text = string(op, "to")?;
+        let to = latin1_lossy(to_text);
         let mut changed = 0;
         for t in model.lods.iter_mut().flat_map(|l| &mut l.textures) {
             if same(t, from) {
-                changed += usize::from(*t != to);
+                changed += usize::from(!t.iter().copied().map(char::from).eq(to_text.chars()));
                 t.clone_from(&to);
             }
         }
@@ -196,13 +198,7 @@ pub fn set_section_texture(data: &[u8], op: &Value, label: &str) -> Result<Vec<u
             .ok()
             .filter(|&s| s < lod.sections.len())
             .ok_or_else(|| format!("LOD has no section {section}"))?;
-        let index = match lod.textures.iter().position(|t| same(t, texture)) {
-            Some(i) => i,
-            None => {
-                lod.textures.push(latin1(texture)?);
-                lod.textures.len() - 1
-            }
-        };
+        let index = crate::label_add::texture_slot(lod, texture);
         lod.sections[section].texture =
             i16::try_from(index).map_err(|_| "texture index overflow")?;
         Ok(())

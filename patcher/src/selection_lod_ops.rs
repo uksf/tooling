@@ -3,7 +3,7 @@ use crate::{
     lod_insert::{self, HITPOINTS, ROADWAY},
     lod_names::resolution,
     odol::{Lod, Selection, lod_edit},
-    op_json::{edit, latin1, required_int, same, string, strings},
+    op_json::{edit, latin1_lossy, required_int, same, string, strings},
     point_ops::{empty_bone, point},
     section_faces::weight,
 };
@@ -50,7 +50,7 @@ fn add_quads(
             .collect::<Result<Vec<_>, _>>()?;
         let n = i32::try_from(faces.len()).map_err(|_| "face count overflow")?;
         named.push(lod_edit::new_selection(
-            latin1(name)?,
+            latin1_lossy(name),
             false,
             &[],
             &[n, n + 1],

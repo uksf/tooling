@@ -19,6 +19,7 @@ pub mod file_ops;
 pub mod hull_ops;
 mod label_add;
 pub mod label_quads;
+mod latin1_best_fit;
 mod lod_insert;
 pub mod lod_names;
 pub mod memory_edit_ops;
@@ -52,6 +53,10 @@ mod op_tests_bind;
 mod op_tests_catchup;
 #[cfg(test)]
 mod op_tests_faces;
+#[cfg(test)]
+mod op_tests_latin1;
+#[cfg(test)]
+mod op_tests_latin1_sites;
 #[cfg(test)]
 mod op_tests_memory;
 #[cfg(test)]

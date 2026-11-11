@@ -1,7 +1,7 @@
 use crate::{
     axis_common::lod_index,
     odol::{Animation, edit_arrays},
-    op_json::{edit, float, floats, latin1, same, string},
+    op_json::{edit, float, floats, latin1_lossy, same, string},
     section_faces::selection,
 };
 use serde_json::Value;
@@ -26,8 +26,8 @@ pub fn add_hide(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String>
         let index = u32::try_from(animations.classes.len()).map_err(|_| "too many animations")?;
         animations.classes.push(Animation {
             kind: HIDE,
-            name: latin1(name)?,
-            source: latin1(string(op, "animationSource")?)?,
+            name: latin1_lossy(name),
+            source: latin1_lossy(string(op, "animationSource")?),
             min_phase: 0.0,
             max_phase: 1.0,
             min_value: 0.0,

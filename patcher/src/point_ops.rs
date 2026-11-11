@@ -1,7 +1,7 @@
 use crate::{
     axis_common::lod_index,
     odol::{BoneWeight, Lod, Model, lod_edit},
-    op_json::{edit, floats, latin1, raw_single, same, string},
+    op_json::{edit, floats, latin1_lossy, raw_single, same, string},
 };
 use serde_json::Value;
 
@@ -57,7 +57,7 @@ pub fn add_loose(target: &mut Lod, name: &str, points: Vec<[f32; 3]>) -> Result<
         .into_iter()
         .map(|p| lod_edit::append_vertex(target, p, clip, normal, bone.clone()))
         .collect::<Result<Vec<_>, _>>()?;
-    let selection = lod_edit::new_selection(latin1(name)?, false, &[], &[], &added)?;
+    let selection = lod_edit::new_selection(latin1_lossy(name), false, &[], &[], &added)?;
     target.selections.push(selection);
     Ok(())
 }

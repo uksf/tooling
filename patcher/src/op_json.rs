@@ -1,4 +1,4 @@
-use crate::odol::Model;
+use crate::{latin1_best_fit::BEST_FIT, odol::Model};
 use serde_json::Value;
 
 const RESERVED_KEY: &str = "$serde_json::private::Number";
@@ -100,10 +100,16 @@ pub fn nullable_strings<'a>(op: &'a Value, name: &str) -> Result<Vec<Option<&'a 
         .ok_or_else(|| format!("op is missing string array \"{name}\": {op}"))
 }
 
-pub fn latin1(s: &str) -> Result<Vec<u8>, String> {
-    s.chars()
-        .map(|c| u8::try_from(c as u32).map_err(|_| "character outside Latin-1".to_owned()))
-        .collect()
+pub fn latin1_unit(unit: u16) -> u8 {
+    u8::try_from(unit).unwrap_or_else(|_| {
+        BEST_FIT
+            .binary_search_by_key(&unit, |pair| pair.0)
+            .map_or(b'?', |i| BEST_FIT[i].1)
+    })
+}
+
+pub fn latin1_lossy(s: &str) -> Vec<u8> {
+    s.encode_utf16().map(latin1_unit).collect()
 }
 
 fn ordinal_upper(c: char) -> char {

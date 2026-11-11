@@ -2,7 +2,7 @@ use crate::{
     lod_insert::{self, HITPOINTS},
     lod_names::resolution,
     odol::{Model, lod_edit},
-    op_json::{edit, latin1, same, string},
+    op_json::{edit, latin1_lossy, same, string},
     point_ops::{bound_to, empty_bone, optional_bone, point},
 };
 use serde_json::Value;
@@ -114,7 +114,7 @@ pub fn add_points(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, Strin
             lod_edit::set_bones(lod, bones)?;
             lod_edit::refresh_rest(lod)?;
         }
-        let selection = lod_edit::new_selection(latin1(name)?, false, &[], &[], &added)?;
+        let selection = lod_edit::new_selection(latin1_lossy(name), false, &[], &[], &added)?;
         lod.selections.push(selection);
         Ok(())
     })

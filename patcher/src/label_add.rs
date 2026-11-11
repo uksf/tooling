@@ -3,7 +3,7 @@ use crate::{
     label_quads::{Convention, Label},
     mesh_math::V,
     odol::{Lod, edit_arrays, lod_edit},
-    op_json::{latin1, same},
+    op_json::{latin1_lossy, same},
     section_faces::{in_section, weight},
     uv_plan::pack,
 };
@@ -34,7 +34,7 @@ pub fn add_label(
     label: &Label,
     template: usize,
     anchor_section: usize,
-    texture: &str,
+    texture_index: usize,
     special: u32,
     convention: &Convention,
 ) -> Result<(), String> {
@@ -111,7 +111,24 @@ pub fn add_label(
     }
     lod.vertex_count = count as u32;
     lod_edit::refresh_rest(lod)?;
-    append_section(lod, &label.selection, new_faces, template, texture, special)
+    append_section(
+        lod,
+        &label.selection,
+        new_faces,
+        template,
+        texture_index,
+        special,
+    )
+}
+
+pub fn texture_slot(lod: &mut Lod, texture: &str) -> usize {
+    lod.textures
+        .iter()
+        .position(|t| same(t, texture))
+        .unwrap_or_else(|| {
+            lod.textures.push(latin1_lossy(texture));
+            lod.textures.len() - 1
+        })
 }
 
 fn append_section(
@@ -119,25 +136,18 @@ fn append_section(
     selection: &str,
     new_faces: Vec<Vec<i32>>,
     template: usize,
-    texture: &str,
+    texture_index: usize,
     special: u32,
 ) -> Result<(), String> {
     let mut old = ranges(lod)?;
     let end = lod.faces.len();
-    let texture_index = match lod.textures.iter().position(|t| same(t, texture)) {
-        Some(i) => i,
-        None => {
-            lod.textures.push(latin1(texture)?);
-            lod.textures.len() - 1
-        }
-    };
     let mut section = lod.sections[template].clone();
     section.texture = texture_index as i16;
     section.special = special;
     lod.sections.push(section);
     let index = (lod.sections.len() - 1) as i32;
     lod.selections.push(lod_edit::new_selection(
-        latin1(selection)?,
+        latin1_lossy(selection),
         true,
         &[index],
         &[],

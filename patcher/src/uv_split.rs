@@ -2,7 +2,7 @@ use crate::{
     axis_common::lod_index,
     cut_seams::source_json,
     odol::{Lod, Section, lod_edit},
-    op_json::{edit, latin1, same, string},
+    op_json::{edit, latin1_lossy, same, string},
     section_faces::{in_section, selection, weight},
     uv_plan::{Island, area, pack, read, sum},
 };
@@ -133,7 +133,7 @@ fn split(lod: &mut Lod, op: &Value, plan: &[Island]) -> Result<(), String> {
     }
     lod_edit::write_uv(&mut lod.uv[0], &uv)?;
     lod_edit::set_st(lod, &st)?;
-    lod.textures.push(latin1(string(op, "texture")?)?);
+    lod.textures.push(latin1_lossy(string(op, "texture")?));
     let tex_b = i16::try_from(lod.textures.len() - 1).map_err(|_| "no room for a texture")?;
     let faces = lod.faces.clone();
     let ctx = Ctx {
@@ -239,7 +239,8 @@ fn split(lod: &mut Lod, op: &Value, plan: &[Island]) -> Result<(), String> {
         }
     }
     b_sections.sort_unstable();
-    let selection = lod_edit::new_selection(latin1(new_selection)?, true, &b_sections, &[], &[])?;
+    let selection =
+        lod_edit::new_selection(latin1_lossy(new_selection), true, &b_sections, &[], &[])?;
     lod.selections.push(selection);
     Ok(())
 }

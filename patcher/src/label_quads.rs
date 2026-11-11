@@ -179,13 +179,14 @@ pub fn add_label_quads(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
                 Some(_) => int(op, "special", 0)? as u32,
                 None => lod.sections[template].special,
             };
+            let texture_index = crate::label_add::texture_slot(&mut model.lods[li], texture);
             for l in &labels {
                 crate::label_add::add_label(
                     &mut model.lods[li],
                     l,
                     template,
                     anchor,
-                    texture,
+                    texture_index,
                     special,
                     &convention,
                 )?;
