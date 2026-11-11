@@ -70,16 +70,14 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 pub struct RunLock {
-    path: PathBuf,
-    created_dir: bool,
+    dir: Option<PathBuf>,
     _file: File,
 }
 
 impl Drop for RunLock {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
-        if self.created_dir {
-            let _ = fs::remove_dir(self.path.parent().unwrap());
+        if let Some(dir) = &self.dir {
+            let _ = fs::remove_dir(dir);
         }
     }
 }
@@ -89,9 +87,12 @@ pub struct Store {
 }
 impl Store {
     pub fn lock(&self) -> Result<RunLock, String> {
-        let created_dir = !self.dir.exists();
-        fs::create_dir_all(&self.dir).map_err(|e| format!("{}: {e}", self.dir.display()))?;
-        let path = self.dir.join(".uksf-patcher.lock");
+        let mut name = self.dir.file_name().unwrap_or_default().to_os_string();
+        name.push(".uksf-patcher.lock");
+        let path = self.dir.with_file_name(name);
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+        }
         let fail =
             |e: &dyn std::fmt::Display| format!("cannot acquire lock {}: {e}", path.display());
         let file = OpenOptions::new()
@@ -104,9 +105,10 @@ impl Store {
             TryLockError::WouldBlock => fail(&"another run holds it"),
             TryLockError::Error(e) => fail(&e),
         })?;
+        let created_dir = !self.dir.exists();
+        fs::create_dir_all(&self.dir).map_err(|e| format!("{}: {e}", self.dir.display()))?;
         Ok(RunLock {
-            path,
-            created_dir,
+            dir: created_dir.then(|| self.dir.clone()),
             _file: file,
         })
     }
