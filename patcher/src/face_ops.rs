@@ -12,7 +12,7 @@ fn root(parent: &mut [usize], mut n: usize) -> usize {
     }
     n
 }
-fn parts(lod: &Lod, bound: &[bool]) -> Vec<Vec<usize>> {
+fn parts(lod: &Lod, bound: &[bool]) -> (Vec<usize>, Vec<Vec<usize>>) {
     let mut parent: Vec<_> = (0..lod.vertices.len()).collect();
     let mut positions = HashMap::new();
     for (i, p) in lod.vertices.iter().enumerate() {
@@ -38,14 +38,12 @@ fn parts(lod: &Lod, bound: &[bool]) -> Vec<Vec<usize>> {
             }
         }
     }
-    let mut groups: HashMap<usize, Vec<usize>> = HashMap::new();
-    for i in 0..parent.len() {
-        let r = root(&mut parent, i);
-        groups.entry(r).or_default().push(i);
+    let mut groups = vec![Vec::new(); parent.len()];
+    let roots: Vec<_> = (0..parent.len()).map(|i| root(&mut parent, i)).collect();
+    for (i, &r) in roots.iter().enumerate() {
+        groups[r].push(i);
     }
-    (0..parent.len())
-        .map(|i| groups[&root(&mut parent, i)].clone())
-        .collect()
+    (roots, groups)
 }
 pub(crate) fn ranges(lod: &Lod) -> Result<Vec<(usize, usize)>, String> {
     let mut offsets = vec![0i32];
@@ -105,7 +103,10 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
         for (f, slot) in indices.iter_mut().enumerate().take(b).skip(a) {
             let face = &lod.faces[f];
             let vs = face.iter().map(|&v| v as usize).collect::<Vec<_>>();
-            let test = parts.as_ref().map(|p| p[vs[0]].as_slice()).unwrap_or(&vs);
+            let test = parts
+                .as_ref()
+                .map(|(roots, groups)| groups[roots[vs[0]]].as_slice())
+                .unwrap_or(&vs);
             let doomed = vs.iter().all(|&v| bound[v])
                 && test.iter().all(|&v| along[v] > all)
                 && test.iter().any(|&v| along[v] > any);
