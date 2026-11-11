@@ -124,3 +124,21 @@ fn splits_shared_memory_point_and_keeps_donor_binding() {
             .contains("use set-memory-point")
     );
 }
+
+#[test]
+fn moves_muzzle_memory_point_with_the_brake() {
+    let data = include_bytes!("data/m119-memory.p3d");
+    let op = json!({"lods":["memory"],"axis":[0,0.885,1.636,0,0.0487,-0.9988],"cut":3.5,"maxRadius":0.3,"length":0.74,"vertices":4});
+    let before = Model::parse(data).unwrap();
+    let after = Model::parse(&stretch(data, &op, "m119").unwrap()).unwrap();
+    let muzzle = before.lods[0]
+        .selections
+        .iter()
+        .find(|s| s.name == b"usti_hlavne")
+        .unwrap()
+        .vertices[0] as usize;
+    let old = before.lods[0].vertices[muzzle];
+    let new = after.lods[0].vertices[muzzle];
+    assert!((new[1] - old[1] - 0.036_038).abs() < 0.0001);
+    assert!((new[2] - old[2] + 0.739_122).abs() < 0.0001);
+}
