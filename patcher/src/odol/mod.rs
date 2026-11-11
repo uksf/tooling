@@ -10,6 +10,7 @@ mod lzo;
 mod material;
 mod mesh;
 pub(crate) mod mesh_arrays;
+mod refs;
 mod skeleton_data;
 pub mod strip;
 mod uv;
@@ -141,6 +142,7 @@ impl Model {
             }
             reader.pos = start;
             let mut lod = Lod::read(&mut reader, header.resolutions[index])?;
+            refs::check(&lod).map_err(|e| format!("LOD {index}: {e}"))?;
             if reader.pos > end {
                 return Err(format!(
                     "LOD {index} parsed past its end address ({} > {end})",

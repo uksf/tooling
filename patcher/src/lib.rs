@@ -36,6 +36,8 @@ pub mod model_ops;
 mod op_tests_memory;
 #[cfg(test)]
 mod op_tests_mesh;
+#[cfg(test)]
+mod op_tests_refs;
 pub mod p3d_info;
 pub mod proxy_ops;
 pub mod remap_ops;

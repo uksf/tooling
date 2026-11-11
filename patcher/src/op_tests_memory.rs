@@ -141,6 +141,7 @@ fn copy_selection_points_adds_centre_and_shrunk_points() {
 fn add_memory_proxies_builds_proxy_triangles() {
     let mut model = Model::parse(RHICC).unwrap();
     let mut visual = model.lods[0].duplicate(0.0).unwrap();
+    visual.sections.push(memory_edit_ops::proxy_section(0));
     visual.proxies.push(Proxy {
         model: b"\\a3\\pylonpod_x".to_vec(),
         transform: [1., 0., 0., 0., 1., 0., 0., 0., 1., 5., 6., 7.],

@@ -28,7 +28,7 @@ pub fn sequence(seq: i32) -> String {
     }
 }
 
-fn proxy_section(face_bytes: i32) -> Section {
+pub(crate) fn proxy_section(face_bytes: i32) -> Section {
     Section {
         face_lower: 0,
         face_upper: face_bytes,

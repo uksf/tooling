@@ -43,20 +43,7 @@ pub fn sections(lod: &Lod, name: &str) -> Result<Vec<usize>, String> {
     if s.is_sectional == 0 || s.sections.is_empty() {
         return Err(format!("'{name}' is not a sectional selection"));
     }
-    s.sections
-        .iter()
-        .map(|&x| {
-            usize::try_from(x)
-                .ok()
-                .filter(|&index| index < lod.sections.len())
-                .ok_or_else(|| {
-                    format!(
-                        "selection '{name}' references invalid section {x} ({} sections)",
-                        lod.sections.len()
-                    )
-                })
-        })
-        .collect()
+    Ok(s.sections.iter().map(|&x| x as usize).collect())
 }
 
 pub fn shared(lod: &Lod, own: &HashSet<usize>, verts: &HashSet<i32>) -> usize {
