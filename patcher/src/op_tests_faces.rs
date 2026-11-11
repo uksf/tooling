@@ -146,3 +146,13 @@ fn add_label_quads_fills_the_texture_when_uv_is_omitted_and_refuses_a_short_list
     let error = add_label_quads(PLUG, &label(Some(json!([[0, 0], [1, 0]]))), "t").unwrap_err();
     assert_eq!(error, "t: label quad uv needs 4 finite [u, v] pairs");
 }
+
+#[test]
+fn add_selection_lod_serializes_quad_overflow_as_infinity() {
+    let op: Value = serde_json::from_str(r#"{"lod":"roadway","fromLod":"geometry","selections":["component01"],"faces":12,"quads":[{"name":"floor","points":[[1e39,-1e39,0],[1,2,-4],[-1,2,-4],[-1,2,4]]}]}"#).unwrap();
+    let m = apply(add_selection_lod, op);
+    assert_eq!(
+        m.lods[GEOMETRY + 1].vertices[8].map(f32::to_bits),
+        [0x7f80_0000, 0xff80_0000, 0]
+    );
+}

@@ -167,3 +167,28 @@ fn add_selection_points_adds_loose_points_and_refuses_short_ones() {
         "t: add-selection-points 'fuel tanks' needs [x, y, z] for every point"
     );
 }
+
+#[test]
+fn add_points_serializes_overflow_as_infinity() {
+    let op: Value = serde_json::from_str(
+        r#"{"lod":"hitpoints","name":"HitTest","points":1,"positions":[[1e39,-1e39,0]]}"#,
+    )
+    .unwrap();
+    let m = apply(add_points, op);
+    assert_eq!(
+        m.lods[1].vertices[152].map(f32::to_bits),
+        [0x7f80_0000, 0xff80_0000, 0]
+    );
+}
+
+#[test]
+fn add_selection_points_serializes_overflow_as_infinity() {
+    let op: Value =
+        serde_json::from_str(r#"{"lod":"memory","name":"overflow","points":[[1e39,-1e39,0]]}"#)
+            .unwrap();
+    let m = apply(add_selection_points, op);
+    assert_eq!(
+        m.lods[0].vertices[152].map(f32::to_bits),
+        [0x7f80_0000, 0xff80_0000, 0]
+    );
+}

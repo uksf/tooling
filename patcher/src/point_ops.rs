@@ -1,7 +1,7 @@
 use crate::{
     axis_common::lod_index,
     odol::{BoneWeight, Lod, Model, lod_edit},
-    op_json::{edit, floats, latin1, same, single, string},
+    op_json::{edit, floats, latin1, raw_single, same, string},
 };
 use serde_json::Value;
 
@@ -20,7 +20,7 @@ pub fn bound_to(sub: usize) -> BoneWeight {
 }
 
 pub fn point(v: &Value) -> Option<Vec<f32>> {
-    v.as_array()?.iter().map(single).collect()
+    v.as_array()?.iter().map(raw_single).collect()
 }
 
 pub fn optional_bone(op: &Value) -> Option<&str> {

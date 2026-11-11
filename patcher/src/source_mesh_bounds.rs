@@ -195,3 +195,21 @@ fn add_mesh_with_no_lods_returns_the_model_unchanged() {
     let out = crate::mesh_ops::add(scope, &op, "t", &dir).unwrap();
     assert_eq!(out, scope);
 }
+
+#[test]
+fn loop_coordinates_accept_overflow_as_nonmatching() {
+    let data = source(4, &[]);
+    for loops in ["[[1e39,1,2]]", "[[0,-1e39,2]]"] {
+        let loops = serde_json::from_str(loops).unwrap();
+        let result = mesh(&data, Some(loops)).unwrap();
+        assert_eq!(result.points[0].array(), [1., 0., 0.]);
+    }
+}
+
+#[test]
+fn loop_radius_accepts_overflow() {
+    let data = source(4, &[]);
+    let loops = serde_json::from_str("[[0,1,1e39]]").unwrap();
+    let result = mesh(&data, Some(loops)).unwrap();
+    assert!(result.points[0].array().iter().any(|x| !x.is_finite()));
+}

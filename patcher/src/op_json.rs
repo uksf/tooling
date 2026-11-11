@@ -5,7 +5,7 @@ const RESERVED_KEY: &str = "$serde_json::private::Number";
 
 pub fn parse(json: &[u8]) -> Result<Value, String> {
     let value = serde_json::from_slice(json).map_err(|e| e.to_string())?;
-    if has_reserved_key(json) {
+    if keys::has_reserved_key(json) {
         return Err(format!(
             "the object key \"{RESERVED_KEY}\" is not supported"
         ));
@@ -13,28 +13,8 @@ pub fn parse(json: &[u8]) -> Result<Value, String> {
     Ok(value)
 }
 
-fn has_reserved_key(json: &[u8]) -> bool {
-    let mut i = 0;
-    while i < json.len() {
-        if json[i] != b'"' {
-            i += 1;
-            continue;
-        }
-        let start = i;
-        i += 1;
-        while json[i] != b'"' {
-            i += if json[i] == b'\\' { 2 } else { 1 };
-        }
-        i += 1;
-        let is_key = json[i..].iter().find(|b| !b.is_ascii_whitespace()) == Some(&b':');
-        if is_key
-            && serde_json::from_slice::<String>(&json[start..i]).is_ok_and(|k| k == RESERVED_KEY)
-        {
-            return true;
-        }
-    }
-    false
-}
+#[path = "op_json_keys.rs"]
+mod keys;
 
 pub fn string<'a>(op: &'a Value, name: &str) -> Result<&'a str, String> {
     op.get(name)
@@ -74,12 +54,12 @@ pub fn optional_bool(op: &Value, name: &str) -> Result<Option<bool>, String> {
         .transpose()
 }
 
+pub fn raw_single(v: &Value) -> Option<f32> {
+    v.as_number()?.to_string().parse::<f32>().ok()
+}
+
 pub fn single(v: &Value) -> Option<f32> {
-    v.as_number()?
-        .to_string()
-        .parse::<f32>()
-        .ok()
-        .filter(|x| x.is_finite())
+    raw_single(v).filter(|x| x.is_finite())
 }
 
 pub fn float(op: &Value, name: &str) -> Result<f32, String> {
