@@ -42,6 +42,8 @@ mod op_tests_memory;
 #[cfg(test)]
 mod op_tests_mesh;
 #[cfg(test)]
+mod op_tests_r3;
+#[cfg(test)]
 mod op_tests_refs;
 #[cfg(test)]
 mod op_tests_strip;

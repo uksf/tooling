@@ -181,3 +181,17 @@ fn loop_radii_reshape_matching_points() {
         [[2., 0., 0.], [0., 2., 0.], [0., 0., 1.], [1., 1., 1.]]
     );
 }
+
+#[test]
+fn add_mesh_with_no_lods_returns_the_model_unchanged() {
+    let dir = std::env::temp_dir().join(format!("uksf-add-mesh-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("s.p3d"), source(4, &[])).unwrap();
+    let mut op: Value = serde_json::from_str(ON_LOOPS).unwrap();
+    op["lods"] = json!([]);
+    op["source"] = json!("s.p3d");
+    op["uvFrom"] = json!({});
+    let scope = include_bytes!("../tests/data/scope.p3d");
+    let out = crate::mesh_ops::add(scope, &op, "t", &dir).unwrap();
+    assert_eq!(out, scope);
+}
