@@ -13,6 +13,6 @@ Build and deployment tools for UKSF Arma 3 work. Each tool is a crate in this Ca
 
 ## Releases
 
-Push a `v*` tag. CI tests on Windows and Linux, then attaches `<tool>-linux-x64`, `<tool>-windows-x64.exe`, and `SHA256SUMS` to the GitHub release.
+Push a `v*` tag. CI tests on Windows and Linux, then attaches `<tool>-linux-x64` (static musl, runs on any x86-64 Linux), `<tool>-windows-x64.exe`, and `SHA256SUMS` to the GitHub release.
 
 Licensed under GPL-2.0-only, because the tools link HEMTT crates.
