@@ -68,6 +68,27 @@ pub fn same(a: &[u8], b: &str) -> bool {
         .eq(b.chars().map(ordinal_upper))
 }
 
+fn invariant_lower(c: char) -> char {
+    let mut lower = c.to_lowercase();
+    match (lower.next(), lower.next()) {
+        (Some(first), None) => first,
+        _ => c,
+    }
+}
+
+pub fn lower_invariant(s: &str) -> String {
+    s.chars().map(invariant_lower).collect()
+}
+
+pub fn same_lowered(model: &[u8], lowered: &str) -> bool {
+    model
+        .iter()
+        .copied()
+        .map(char::from)
+        .map(invariant_lower)
+        .eq(lowered.chars())
+}
+
 pub fn contains(model: &[u8], filter: &str) -> bool {
     let n = filter.chars().count();
     n == 0 || model.windows(n).any(|w| same(w, filter))
@@ -120,4 +141,13 @@ fn same_matches_dotnet_ordinal_ignore_case() {
     assert!(contains(b"\\p\xe9x", "ÉX"));
     assert!(contains(b"ab", ""));
     assert!(!contains(b"ab", "abc"));
+}
+
+#[test]
+fn same_lowered_matches_dotnet_lower_invariant_then_exact() {
+    assert_eq!(lower_invariant(r"\PROXY\Ä"), r"\proxy\ä");
+    assert!(same_lowered(&[b'C', 0xC9], &lower_invariant("cé")));
+    assert!(!same_lowered(&[0xB5], &lower_invariant("\u{03BC}")));
+    assert!(same(&[0xB5], "\u{03BC}"));
+    assert!(same_lowered(b"k", &lower_invariant("\u{212A}")));
 }

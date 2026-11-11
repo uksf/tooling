@@ -1,7 +1,7 @@
 use crate::{
     lod_names::resolution,
     odol::Model,
-    op_json::{same, strings},
+    op_json::{lower_invariant, same, same_lowered, strings},
 };
 use serde_json::Value;
 use std::collections::HashSet;
@@ -31,7 +31,10 @@ pub fn remove_component(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
             return Err(format!("no {name} LOD"));
         }
         let lod = &mut model.lods[matches[0]];
-        let names = strings(op, "components")?;
+        let names: Vec<String> = strings(op, "components")?
+            .into_iter()
+            .map(lower_invariant)
+            .collect();
         let required = op
             .get("requireProxyFaces")
             .map(|v| v.as_bool().ok_or("invalid requireProxyFaces"))
@@ -55,7 +58,7 @@ pub fn remove_component(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
                     name_lod = name_str(op)
                 ));
             }
-            if !name.to_lowercase().starts_with("component") {
+            if !name.starts_with("component") {
                 return Err(format!("'{name}' is not a component selection"));
             }
             if required && !selected[0].faces.iter().all(|f| faces.contains(f)) {
@@ -67,7 +70,7 @@ pub fn remove_component(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
         let mut indices = Vec::with_capacity(lod.selections.len());
         let mut next = 0;
         for selection in &lod.selections {
-            if names.iter().any(|n| same(&selection.name, n)) {
+            if names.iter().any(|n| same_lowered(&selection.name, n)) {
                 indices.push(None);
             } else {
                 indices.push(Some(next));
@@ -82,7 +85,7 @@ pub fn remove_component(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>,
                 .ok_or("a proxy's selection cannot be removed")?;
         }
         lod.selections
-            .retain(|s| !names.iter().any(|n| same(&s.name, n)));
+            .retain(|s| !names.iter().any(|n| same_lowered(&s.name, n)));
         let result = model.write()?;
         Model::parse(&result)?;
         Ok(result)

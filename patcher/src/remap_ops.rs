@@ -13,8 +13,8 @@ fn path(value: &Value, key: &str) -> Result<String, String> {
         .get(key)
         .and_then(Value::as_str)
         .ok_or_else(|| format!("op is missing string \"{key}\": {value}"))?
-        .replace('/', "\\")
-        .to_lowercase())
+        .replace('/', "\\"))
+    .map(|s| crate::op_json::lower_invariant(&s))
 }
 fn id(value: &Value, key: &str) -> Result<i32, String> {
     value
@@ -61,10 +61,9 @@ pub fn remap_proxies(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, St
         let mut used = HashSet::new();
         for lod in &mut model.lods {
             for proxy in &mut lod.proxies {
-                if let Some(rule) = rules
-                    .iter()
-                    .find(|r| crate::op_json::same(&proxy.model, &r.from) && r.id == proxy.sequence)
-                {
+                if let Some(rule) = rules.iter().find(|r| {
+                    crate::op_json::same_lowered(&proxy.model, &r.from) && r.id == proxy.sequence
+                }) {
                     let bytes = rule
                         .to
                         .chars()
