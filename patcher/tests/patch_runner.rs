@@ -150,11 +150,11 @@ fn rejects_bad_pins_and_unported_ops_without_writes() {
     assert_eq!(b.pbo(), b.pristine);
     assert!(!b.root.join("state").exists());
     let mut asset = b.asset("2");
-    asset[0]["ops"][0]["op"] = "add-physx".into();
+    asset[0]["ops"][0]["op"] = "rtm-strip-bones".into();
     b.manifest(asset);
     let bad = b.run("apply", &[]);
     assert_eq!(bad.status.code(), Some(1));
-    assert!(err(&bad).contains("op not implemented: 'add-physx'"));
+    assert!(err(&bad).contains("op not implemented: 'rtm-strip-bones'"));
     assert_eq!(b.pbo(), b.pristine);
     assert!(!b.root.join("state").exists());
 }
