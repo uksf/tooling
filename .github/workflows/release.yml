@@ -27,7 +27,7 @@ jobs:
         shell: bash
         run: |
           mkdir dist
-          for bin in uksf-sign; do
+          for bin in uksf-sign uksf-patcher; do
             cp "target/release/${bin}${{ matrix.exe }}" "dist/${bin}-${{ matrix.platform }}${{ matrix.exe }}"
           done
       - uses: actions/upload-artifact@v4
