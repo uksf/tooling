@@ -153,8 +153,9 @@ fn gauss(mut m: [[f64; 3]; 3], mut b: [f64; 3]) -> [f64; 3] {
         b.swap(c, p);
         for r in c + 1..3 {
             let k = m[r][c] / m[c][c];
-            for j in c..3 {
-                m[r][j] -= k * m[c][j];
+            let pivot = m[c];
+            for (value, &base) in m[r][c..].iter_mut().zip(&pivot[c..]) {
+                *value -= k * base;
             }
             b[r] -= k * b[c];
         }

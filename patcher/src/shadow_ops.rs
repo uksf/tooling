@@ -21,6 +21,10 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
         Some("the target LOD is empty")
     } else if volume.uv.len() != 1 || volume.uv[0].fill == 0 {
         Some("the target LOD has real UVs")
+    } else if !odol::mesh_arrays::st(volume)?.is_empty()
+        || !odol::mesh_arrays::st(source)?.is_empty()
+    {
+        Some("a LOD has tangents")
     } else if !volume.vertex_to_point.is_empty() || !source.vertex_to_point.is_empty() {
         Some("a LOD has a vertex-to-point map")
     } else if !volume.frames.is_empty() || !source.frames.is_empty() {

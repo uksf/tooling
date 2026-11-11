@@ -66,7 +66,12 @@ fn append(
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut tangents = Vec::new();
-    let mut uvs: Vec<_> = lod.uv.iter().map(|u| u.coords.clone()).collect();
+    let mut uvs: Vec<_> = lod
+        .uv
+        .iter()
+        .zip(fits)
+        .map(|(u, fit)| fit.as_ref().map(|_| u.coords.clone()))
+        .collect();
     let mut keyed = HashMap::new();
     let mut faces = Vec::new();
     let fold = axis_common::number(op, "attachAlong")?;
@@ -133,7 +138,9 @@ fn append(
                     tangents.push(t);
                 }
                 for (u, p) in uvs.iter_mut().zip(uv) {
-                    u.push(p);
+                    if let Some(u) = u {
+                        u.push(p);
+                    }
                 }
                 v
             };

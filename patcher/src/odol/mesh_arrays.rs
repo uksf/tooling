@@ -8,7 +8,7 @@ pub struct Appended {
     pub positions: Vec<[f32; 3]>,
     pub normals: Vec<u32>,
     pub tangents: Vec<[u32; 2]>,
-    pub uvs: Vec<Vec<[f32; 2]>>,
+    pub uvs: Vec<Option<Vec<[f32; 2]>>>,
     pub donor: usize,
 }
 pub fn append(lod: &mut Lod, extra: Appended) -> Result<(), String> {
@@ -53,7 +53,7 @@ pub fn append(lod: &mut Lod, extra: Appended) -> Result<(), String> {
     }
     lod.clip_origin = condensed(&clips, 4)?;
     for (set, uv) in lod.uv.iter_mut().zip(extra.uvs) {
-        if set.fill == 0 {
+        if let Some(uv) = uv {
             let mut min = [f32::INFINITY; 2];
             let mut max = [f32::NEG_INFINITY; 2];
             for p in &uv {
