@@ -31,6 +31,10 @@ pub mod memory_ops;
 pub mod mlod_ops;
 mod mlod_tags;
 pub mod model_ops;
+#[cfg(test)]
+mod op_tests_memory;
+#[cfg(test)]
+mod op_tests_mesh;
 pub mod p3d_info;
 pub mod proxy_ops;
 pub mod remap_ops;

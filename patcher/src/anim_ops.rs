@@ -93,18 +93,3 @@ pub fn add_translation(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
         Ok(())
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{address, set_animation_source};
-    use serde_json::json;
-
-    #[test]
-    fn maps_source_addresses_case_insensitively() {
-        assert_eq!(address("LOOP"), Ok(2));
-        assert!(address("wrap").is_err());
-        let cable = include_bytes!("../tests/data/cable.p3d");
-        let err = set_animation_source(cable, &json!({"animation":"x","to":"y"}), "t");
-        assert!(err.is_err());
-    }
-}
