@@ -66,9 +66,9 @@ pub fn add_label(
         let right = (c[1] - c[0]).unit();
         let down = (c[3] - c[0]).unit();
         let first = positions.len() as i32;
-        for k in 0..4 {
-            let anchor = nearest(lod, &anchors, c[k])?;
-            positions.push(c[k].array());
+        for (k, corner) in c.iter().enumerate() {
+            let anchor = nearest(lod, &anchors, *corner)?;
+            positions.push(corner.array());
             normals.extend(pack(&stored.array()));
             if has_tangents {
                 st.extend(pack(&right.array()));

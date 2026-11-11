@@ -38,6 +38,8 @@ mod source_mesh;
 mod uv_plan;
 pub mod uv_split;
 
+#[cfg(test)]
+mod convex_cache_tests;
 pub mod engine;
 pub mod manifest;
 pub mod memory_ops;
@@ -46,6 +48,10 @@ mod mlod_tags;
 pub mod model_ops;
 #[cfg(test)]
 mod op_tests_bind;
+#[cfg(test)]
+mod op_tests_catchup;
+#[cfg(test)]
+mod op_tests_faces;
 #[cfg(test)]
 mod op_tests_memory;
 #[cfg(test)]
