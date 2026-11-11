@@ -26,10 +26,7 @@ pub fn set_skeleton_name(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>
             String::from_utf8_lossy(&skeleton.name)
         ));
     }
-    skeleton.name = to
-        .chars()
-        .map(|c| u8::try_from(c as u32).map_err(|_| "character outside Latin-1".to_owned()))
-        .collect::<Result<_, _>>()?;
+    skeleton.name = crate::op_json::latin1_lossy(to);
     let result = model.write()?;
     Model::parse(&result).map_err(|e| format!("{label}: {e}"))?;
     Ok(result)

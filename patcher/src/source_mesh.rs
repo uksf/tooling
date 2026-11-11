@@ -3,7 +3,6 @@ use crate::{
     mesh_math::V,
 };
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
 
 pub struct Corner {
     pub point: usize,
@@ -117,40 +116,9 @@ fn key(p: V) -> (i32, i32, i32) {
         (p.2 * 1e4).round_ties_even() as i32,
     )
 }
-fn smooth(tris: Vec<[usize; 3]>, points: &[V]) -> Vec<Vec<Corner>> {
-    let area: Vec<_> = tris
-        .iter()
-        .map(|f| (points[f[1]] - points[f[0]]).cross(points[f[2]] - points[f[0]]))
-        .collect();
-    let facing: Vec<_> = area.iter().map(|&v| v.unit()).collect();
-    let mut around: HashMap<_, Vec<usize>> = HashMap::new();
-    for (i, f) in tris.iter().enumerate() {
-        for &p in f {
-            around.entry(key(points[p])).or_default().push(i);
-        }
-    }
-    let hard = (std::f32::consts::PI * 40.0 / 180.0).cos();
-    tris.iter()
-        .enumerate()
-        .map(|(i, f)| {
-            f.iter()
-                .map(|&p| {
-                    let mut sum = V::default();
-                    let mut seen = HashSet::new();
-                    for &h in &around[&key(points[p])] {
-                        if seen.insert(h) && facing[h].dot(facing[i]) > hard {
-                            sum = sum + area[h];
-                        }
-                    }
-                    Corner {
-                        point: p,
-                        normal: sum.unit(),
-                    }
-                })
-                .collect()
-        })
-        .collect()
-}
+#[path = "source_mesh_smooth.rs"]
+mod smooth;
+
 pub fn load(data: &[u8], op: &Value, frame: &Frame) -> Result<Mesh, String> {
     let (src, faces) = read(data)?;
     let a = numbers(op, "sourceAxis", 6)?;
@@ -184,7 +152,7 @@ pub fn load(data: &[u8], op: &Value, frame: &Frame) -> Result<Mesh, String> {
     let on_loop = |p: V, l: &Value| -> Result<bool, String> {
         let get = |i: usize| {
             l.get(i)
-                .and_then(crate::op_json::single)
+                .and_then(crate::op_json::raw_single)
                 .ok_or_else(|| format!("invalid add-mesh loop {l}"))
         };
         let rel = p - origin;
@@ -204,7 +172,7 @@ pub fn load(data: &[u8], op: &Value, frame: &Frame) -> Result<Mesh, String> {
             if on_loop(p, l)? {
                 let radius = l
                     .get(2)
-                    .and_then(crate::op_json::single)
+                    .and_then(crate::op_json::raw_single)
                     .ok_or("invalid loop radius")?;
                 radial = radial.unit() * radius;
             }
@@ -262,7 +230,7 @@ pub fn load(data: &[u8], op: &Value, frame: &Frame) -> Result<Mesh, String> {
         }
     }
     Ok(Mesh {
-        faces: smooth(tris, &points),
+        faces: smooth::smooth(tris, &points),
         points,
         weld: welded,
     })

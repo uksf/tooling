@@ -1,11 +1,11 @@
-use crate::odol::Model;
+use crate::{latin1_best_fit::BEST_FIT, odol::Model};
 use serde_json::Value;
 
 const RESERVED_KEY: &str = "$serde_json::private::Number";
 
 pub fn parse(json: &[u8]) -> Result<Value, String> {
     let value = serde_json::from_slice(json).map_err(|e| e.to_string())?;
-    if has_reserved_key(json) {
+    if keys::has_reserved_key(json) {
         return Err(format!(
             "the object key \"{RESERVED_KEY}\" is not supported"
         ));
@@ -13,28 +13,8 @@ pub fn parse(json: &[u8]) -> Result<Value, String> {
     Ok(value)
 }
 
-fn has_reserved_key(json: &[u8]) -> bool {
-    let mut i = 0;
-    while i < json.len() {
-        if json[i] != b'"' {
-            i += 1;
-            continue;
-        }
-        let start = i;
-        i += 1;
-        while json[i] != b'"' {
-            i += if json[i] == b'\\' { 2 } else { 1 };
-        }
-        i += 1;
-        let is_key = json[i..].iter().find(|b| !b.is_ascii_whitespace()) == Some(&b':');
-        if is_key
-            && serde_json::from_slice::<String>(&json[start..i]).is_ok_and(|k| k == RESERVED_KEY)
-        {
-            return true;
-        }
-    }
-    false
-}
+#[path = "op_json_keys.rs"]
+mod keys;
 
 pub fn string<'a>(op: &'a Value, name: &str) -> Result<&'a str, String> {
     op.get(name)
@@ -56,6 +36,15 @@ pub fn int(op: &Value, name: &str, fallback: i32) -> Result<i32, String> {
     })
 }
 
+pub fn required_int(op: &Value, name: &str) -> Result<i32, String> {
+    match op.get(name) {
+        Some(v) if v.is_number() => {
+            int32(v).ok_or_else(|| format!("op needs \"{name}\" as an integer: {op}"))
+        }
+        _ => Err(format!("op is missing int \"{name}\": {op}")),
+    }
+}
+
 pub fn optional_bool(op: &Value, name: &str) -> Result<Option<bool>, String> {
     op.get(name)
         .map(|v| {
@@ -65,12 +54,12 @@ pub fn optional_bool(op: &Value, name: &str) -> Result<Option<bool>, String> {
         .transpose()
 }
 
+pub fn raw_single(v: &Value) -> Option<f32> {
+    v.as_number()?.to_string().parse::<f32>().ok()
+}
+
 pub fn single(v: &Value) -> Option<f32> {
-    v.as_number()?
-        .to_string()
-        .parse::<f32>()
-        .ok()
-        .filter(|x| x.is_finite())
+    raw_single(v).filter(|x| x.is_finite())
 }
 
 pub fn float(op: &Value, name: &str) -> Result<f32, String> {
@@ -111,10 +100,16 @@ pub fn nullable_strings<'a>(op: &'a Value, name: &str) -> Result<Vec<Option<&'a 
         .ok_or_else(|| format!("op is missing string array \"{name}\": {op}"))
 }
 
-pub fn latin1(s: &str) -> Result<Vec<u8>, String> {
-    s.chars()
-        .map(|c| u8::try_from(c as u32).map_err(|_| "character outside Latin-1".to_owned()))
-        .collect()
+pub fn latin1_unit(unit: u16) -> u8 {
+    u8::try_from(unit).unwrap_or_else(|_| {
+        BEST_FIT
+            .binary_search_by_key(&unit, |pair| pair.0)
+            .map_or(b'?', |i| BEST_FIT[i].1)
+    })
+}
+
+pub fn latin1_lossy(s: &str) -> Vec<u8> {
+    s.encode_utf16().map(latin1_unit).collect()
 }
 
 fn ordinal_upper(c: char) -> char {
@@ -177,6 +172,14 @@ pub fn edit(
     rewrites_faces: bool,
     change: impl FnOnce(&mut Model) -> Result<(), String>,
 ) -> Result<Vec<u8>, String> {
+    edit_unlabelled(data, rewrites_faces, change).map_err(|e| format!("{label}: {e}"))
+}
+
+pub fn edit_unlabelled(
+    data: &[u8],
+    rewrites_faces: bool,
+    change: impl FnOnce(&mut Model) -> Result<(), String>,
+) -> Result<Vec<u8>, String> {
     let run = || -> Result<Vec<u8>, String> {
         let mut model = Model::parse(data)?;
         if model.write()? != data {
@@ -192,7 +195,7 @@ pub fn edit(
         }
         Ok(output)
     };
-    run().map_err(|e| format!("{label}: {e}"))
+    run()
 }
 
 #[test]

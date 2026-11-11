@@ -7,11 +7,6 @@ fn string<'a>(op: &'a Value, field: &str) -> Result<&'a str, String> {
         .and_then(Value::as_str)
         .ok_or_else(|| format!("op is missing string \"{field}\": {op}"))
 }
-fn latin(s: &str) -> Result<Vec<u8>, String> {
-    s.chars()
-        .map(|c| u8::try_from(c as u32).map_err(|_| "character outside Latin-1".into()))
-        .collect()
-}
 pub fn set_bone_parent(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String> {
     let run = || -> Result<Vec<u8>, String> {
         let mut model = Model::parse(data)?;
@@ -21,7 +16,7 @@ pub fn set_bone_parent(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
         let name = string(op, "bone")?;
         let from = string(op, "from")?;
         let to = string(op, "to")?;
-        let to_bytes = latin(to)?;
+        let to_bytes = crate::op_json::latin1_lossy(to);
         let bones = &mut model.info.skeleton.bones;
         let matches: Vec<_> = bones
             .iter()

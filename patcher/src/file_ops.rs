@@ -12,12 +12,6 @@ pub fn text_replace(
             "text-replace cannot edit a rapified (binarised) config; use replace-file".into(),
         );
     }
-    let encode = |value: &str| {
-        value
-            .chars()
-            .map(|c| u8::try_from(c as u32).unwrap_or(b'?'))
-            .collect::<Vec<_>>()
-    };
     let find = match find
         .chars()
         .map(|c| u8::try_from(c as u32))
@@ -32,7 +26,7 @@ pub fn text_replace(
         }
     };
     let find_text: String = find.iter().map(|byte| char::from(*byte)).collect();
-    let replacement = encode(replacement);
+    let replacement = crate::op_json::latin1_lossy(replacement);
     let mut output = Vec::new();
     let mut offset = 0;
     let mut count = 0;

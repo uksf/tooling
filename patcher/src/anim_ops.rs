@@ -1,6 +1,6 @@
 use crate::{
     odol::Animation,
-    op_json::{edit, float, floats, latin1, optional_string, same, string},
+    op_json::{edit, float, floats, latin1_lossy, optional_string, same, string},
 };
 use serde_json::Value;
 
@@ -18,7 +18,7 @@ fn address(name: &str) -> Result<u32, String> {
 pub fn set_animation_source(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String> {
     edit(data, label, false, |model| {
         let name = string(op, "animation")?;
-        let source = latin1(string(op, "to")?)?;
+        let source = latin1_lossy(string(op, "to")?);
         let index = optional_string(op, "address")?.map(address).transpose()?;
         let mut hits = 0;
         for a in model
@@ -62,8 +62,8 @@ pub fn add_translation(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
         let index = u32::try_from(animations.classes.len()).map_err(|_| "too many animations")?;
         animations.classes.push(Animation {
             kind: TRANSLATION,
-            name: latin1(name)?,
-            source: latin1(string(op, "animationSource")?)?,
+            name: latin1_lossy(name),
+            source: latin1_lossy(string(op, "animationSource")?),
             min_phase: min_value,
             max_phase: max_value,
             min_value,

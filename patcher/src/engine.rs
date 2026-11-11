@@ -17,10 +17,13 @@ const MODEL_OPS: &[&str] = &[
     "set-bone-parent",
     "set-skeleton-name",
     "strip-animations",
+    "add-hide",
     "remove-component",
     "convex-hull-component",
     "remove-degenerate-faces",
     "set-animation-source",
+    "set-rotation-range",
+    "move-rotation-axis",
     "bind-selection",
     "translate-selection",
     "rebind-vertices",
@@ -32,6 +35,7 @@ const MODEL_OPS: &[&str] = &[
     "set-memory-point",
     "split-memory-point",
     "copy-selection-points",
+    "add-selection-points",
     "split-selection",
     "cut-seams",
     "uv-split",
@@ -42,13 +46,39 @@ const MODEL_OPS: &[&str] = &[
     "stretch-along-axis",
     "remove-faces",
     "add-mesh",
+    "isolate-memory-selection",
+    "add-selection-lod",
+    "add-points",
+    "add-label-quads",
+    "add-reverse-face",
     "rebuild-shadow-volume",
 ];
 
-fn latin1(s: &str) -> Result<Vec<u8>, String> {
+fn latin1_strict(s: &str) -> Result<Vec<u8>, String> {
     s.chars()
         .map(|c| u8::try_from(c as u32).map_err(|_| "character outside Latin-1".to_owned()))
         .collect()
+}
+
+fn lookup_path(s: &str) -> Option<Vec<u8>> {
+    s.chars()
+        .map(|c| {
+            let mut lower = c.to_lowercase();
+            let single = match (u8::try_from(c as u32), lower.next(), lower.next()) {
+                (Ok(b), _, _) => return Some(b),
+                (_, Some(l), None) => l,
+                _ => return None,
+            };
+            u8::try_from(single as u32).ok()
+        })
+        .collect()
+}
+
+fn find_source(pbo: &Pbo, label: &str, source: &str) -> Result<Option<usize>, String> {
+    lookup_path(source).map_or(Ok(None), |bytes| {
+        pbo.find(&bytes)
+            .map_err(|e| format!("{label}: cannot parse: {e}"))
+    })
 }
 
 fn op_string<'a>(op: &'a Value, name: &str) -> Result<&'a str, String> {
@@ -104,6 +134,16 @@ fn apply_op(data: &[u8], op: &Value, manifest: &Manifest, label: &str) -> Result
         "restore-lod-proxies" => proxy_ops::restore_lod_proxies(data, op, label),
         "remap-proxies" => remap_ops::remap_proxies(data, op, label),
         "set-animation-source" => crate::anim_ops::set_animation_source(data, op, label),
+        "add-hide" => crate::anim_edit_ops::add_hide(data, op, label),
+        "set-rotation-range" => crate::anim_edit_ops::set_rotation_range(data, op, label),
+        "move-rotation-axis" => crate::anim_edit_ops::move_rotation_axis(data, op, label),
+        "add-points" => crate::add_points_ops::add_points(data, op, label),
+        "isolate-memory-selection" => crate::point_ops::isolate_memory_selection(data, op, label),
+        "add-selection-points" => crate::point_ops::add_selection_points(data, op, label),
+        "add-selection-lod" => crate::selection_lod_ops::add_selection_lod(data, op, label),
+        "convex-hull-component" => crate::hull_ops::convex_hull_component(data, op, label),
+        "add-reverse-face" => crate::reverse_face_ops::add_reverse_face(data, op, label),
+        "add-label-quads" => crate::label_quads::add_label_quads(data, op, label),
         "add-translation" => crate::anim_ops::add_translation(data, op, label),
         "bind-selection" => crate::bind_ops::bind_selection(data, op, label),
         "rebind-vertices" => crate::bind_ops::rebind_vertices(data, op, label),
@@ -140,10 +180,7 @@ pub fn patch(pristine: Vec<u8>, manifest: &Manifest) -> Result<Vec<u8>, String> 
     for asset in &manifest.assets {
         let label = format!("{}:{}", manifest.pbo, asset.path);
         let source = asset.copy_of.as_deref().unwrap_or(&asset.path);
-        let source_bytes = latin1(source).map_err(|e| format!("{label}: {e}"))?;
-        let index = pbo
-            .find(&source_bytes)
-            .map_err(|e| format!("{label}: cannot parse: {e}"))?
+        let index = find_source(&pbo, &label, source)?
             .ok_or_else(|| format!("{}: asset '{source}' is not in the PBO", manifest.pbo))?;
         if let std::collections::hash_map::Entry::Vacant(entry) = pinned.entry(index) {
             let data = pbo
@@ -165,15 +202,12 @@ pub fn patch(pristine: Vec<u8>, manifest: &Manifest) -> Result<Vec<u8>, String> 
     for asset in &manifest.assets {
         let label = format!("{}:{}", manifest.pbo, asset.path);
         let source = asset.copy_of.as_deref().unwrap_or(&asset.path);
-        let source_bytes = latin1(source).map_err(|e| format!("{label}: {e}"))?;
-        let index = pbo
-            .find(&source_bytes)
-            .map_err(|e| format!("{label}: cannot parse: {e}"))?
+        let index = find_source(&pbo, &label, source)?
             .ok_or_else(|| format!("{}: asset '{source}' is not in the PBO", manifest.pbo))?;
         let mut target = Vec::new();
         if asset.copy_of.is_some() {
             target =
-                pbo.entry_name(&latin1(&asset.path).map_err(|e| {
+                pbo.entry_name(&latin1_strict(&asset.path).map_err(|e| {
                     format!("{label}: copy target is not a valid PBO entry name: {e}")
                 })?);
             if target.is_empty()

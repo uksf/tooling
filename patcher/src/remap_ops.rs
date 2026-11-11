@@ -64,12 +64,7 @@ pub fn remap_proxies(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, St
                 if let Some(rule) = rules.iter().find(|r| {
                     crate::op_json::same_lowered(&proxy.model, &r.from) && r.id == proxy.sequence
                 }) {
-                    let bytes = rule
-                        .to
-                        .chars()
-                        .map(|c| u8::try_from(c as u32).map_err(|_| "character outside Latin-1"))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    proxy.model = bytes;
+                    proxy.model = crate::op_json::latin1_lossy(&rule.to);
                     proxy.sequence = rule.to_id;
                     let selection = lod
                         .selections
@@ -78,13 +73,11 @@ pub fn remap_proxies(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, St
                                 .map_err(|_| "invalid proxy selection")?,
                         )
                         .ok_or("invalid proxy selection")?;
-                    selection.name =
-                        format!("proxy:{}.{}", rule.to, crate::dotnet_fmt::pad3(rule.to_id))
-                            .chars()
-                            .map(|c| {
-                                u8::try_from(c as u32).map_err(|_| "character outside Latin-1")
-                            })
-                            .collect::<Result<Vec<_>, _>>()?;
+                    selection.name = crate::op_json::latin1_lossy(&format!(
+                        "proxy:{}.{}",
+                        rule.to,
+                        crate::dotnet_fmt::pad3(rule.to_id)
+                    ));
                     used.insert((&rule.from, rule.id));
                 }
             }
