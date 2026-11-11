@@ -68,11 +68,11 @@ fn read(data: &[u8]) -> Result<(Vec<V>, Vec<Vec<usize>>), String> {
     r.take(nn.checked_mul(12).ok_or("MLOD overflow")?)?;
     r.limit(nf, 74)?;
     let mut faces = Vec::with_capacity(nf);
+    let mut counts = Vec::with_capacity(nf);
     for _ in 0..nf {
-        let n = r.u32()?;
-        if n != 3 && n != 4 {
-            return Err("add-mesh source has a face that is not a triangle or quad".into());
-        }
+        let declared = r.u32()? as u32 as i32;
+        counts.push(declared);
+        let n = declared.clamp(0, 4) as usize;
         let mut f = Vec::new();
         for k in 0..4 {
             let point = r.u32()?;
@@ -89,6 +89,7 @@ fn read(data: &[u8]) -> Result<(Vec<V>, Vec<Vec<usize>>), String> {
         r.string()?;
         faces.push(f);
     }
+    suffix::skip(&mut r, np, &counts)?;
     Ok((points, faces))
 }
 fn numbers(op: &Value, name: &str, n: usize) -> Result<Vec<f32>, String> {
@@ -219,6 +220,9 @@ pub fn load(data: &[u8], op: &Value, frame: &Frame) -> Result<Mesh, String> {
             return Err("an add-mesh weld loop matches no source point".into());
         }
     }
+    if faces.iter().any(|f| f.len() < 3) {
+        return Err("add-mesh source has a face that is not a triangle or quad".into());
+    }
     let mut tris = Vec::new();
     for f in faces {
         tris.push([f[0], f[1], f[2]]);
@@ -263,6 +267,9 @@ pub fn load(data: &[u8], op: &Value, frame: &Frame) -> Result<Mesh, String> {
         weld: welded,
     })
 }
+
+#[path = "source_mesh_suffix.rs"]
+mod suffix;
 
 #[cfg(test)]
 #[path = "source_mesh_bounds.rs"]
