@@ -95,7 +95,7 @@ pub fn bind_selection(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, S
     })
 }
 
-fn sub_bone(lod: &mut Lod, names: &[&[u8]], bone: &str, add: bool) -> Result<u8, String> {
+fn sub_bone(lod: &mut Lod, names: &[&[u8]], bone: &str, add: bool) -> Result<i32, String> {
     let skel = names
         .iter()
         .position(|n| same(n, bone))
@@ -105,7 +105,7 @@ fn sub_bone(lod: &mut Lod, names: &[&[u8]], bone: &str, add: bool) -> Result<u8,
         .get(skel)
         .ok_or("skeleton bone is outside the LOD's table")?;
     if let Some(&first) = set.first() {
-        return u8::try_from(first).map_err(|_| format!("bone '{bone}' does not fit a weight"));
+        return Ok(first);
     }
     if !add {
         return Err(format!("LOD has no bone '{bone}'"));
@@ -118,7 +118,7 @@ fn sub_bone(lod: &mut Lod, names: &[&[u8]], bone: &str, add: bool) -> Result<u8,
     })?;
     lod.sub_to_skeleton.push(skel as i32);
     lod.skeleton_to_sub[skel] = vec![i32::from(sub)];
-    Ok(sub)
+    Ok(i32::from(sub))
 }
 
 pub fn rebind_vertices(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String> {
@@ -134,7 +134,8 @@ pub fn rebind_vertices(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
         let names: Vec<Vec<u8>> = bone_names(model).into_iter().map(<[u8]>::to_vec).collect();
         let names: Vec<&[u8]> = names.iter().map(Vec::as_slice).collect();
         let lod = &mut model.lods[li];
-        let from = sub_bone(lod, &names, string(op, "from")?, false)?;
+        let from_name = string(op, "from")?;
+        let from = sub_bone(lod, &names, from_name, false)?;
         let to = sub_bone(lod, &names, string(op, "to")?, true)?;
         let own_faces = in_section(lod, &lod.sections[section]);
         let own: HashSet<usize> = own_faces.iter().copied().collect();
@@ -163,9 +164,9 @@ pub fn rebind_vertices(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, 
         for &v in &verts {
             let r = refs
                 .get_mut(v as usize)
-                .filter(|r| r.count == 1 && r.data[0] == from)
-                .ok_or_else(|| format!("vertex {v} is not weighted to the 'from' bone alone"))?;
-            r.data[0] = to;
+                .filter(|r| r.count == 1 && i32::from(r.data[0]) == from)
+                .ok_or_else(|| format!("vertex {v} is not weighted to '{from_name}' alone"))?;
+            r.data[0] = to as u8;
         }
         finish(lod, refs, &[section])
     })
@@ -186,7 +187,11 @@ pub fn translate_selection(data: &[u8], op: &Value, label: &str) -> Result<Vec<u
             return Err(format!("'{selection}' has no faces"));
         }
         let verts: HashSet<i32> = own.iter().flat_map(|&f| lod.faces[f].clone()).collect();
-        let count = shared(lod, &own, &verts);
+        let count = (0..lod.faces.len())
+            .filter(|f| !own.contains(f))
+            .flat_map(|f| &lod.faces[f])
+            .filter(|v| verts.contains(v))
+            .count();
         if count > 0 {
             return Err(format!(
                 "{count} vertices of '{selection}' are shared with other faces"
