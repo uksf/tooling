@@ -175,6 +175,11 @@ impl Pbo {
         if e.packing != COMPRESSED {
             return Ok(data.to_vec());
         }
+        crate::bound::expand_fits(
+            e.original_size as usize,
+            data.len(),
+            crate::bound::LZSS_RATIO,
+        )?;
         let mut output = vec![0; e.original_size as usize];
         if output.is_empty() {
             return Ok(output);

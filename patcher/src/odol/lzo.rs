@@ -89,6 +89,7 @@ pub fn decompress(input: &[u8], expected: usize) -> Result<(Vec<u8>, usize), Str
     if expected == 0 {
         return Ok((Vec::new(), 0));
     }
+    crate::bound::expand_fits(expected, input.len(), crate::bound::LZO_RATIO)?;
     let mut dec = Dec {
         input,
         ip: 0,
@@ -190,4 +191,17 @@ fn match_at(dec: &mut Dec<'_>, instruction: u32) -> Result<Go, String> {
     let from = dec.back(dist)?;
     dec.copy_from(from, 2)?;
     Ok(Go::MatchDone)
+}
+
+#[cfg(test)]
+mod bounds {
+    use super::decompress;
+
+    #[test]
+    fn lzo_block_rejects_huge_declared_size() {
+        assert_eq!(
+            decompress(&[0; 8], 0xFFFF_FFF0).unwrap_err(),
+            "declared size 4294967280 exceeds the 512 MiB cap"
+        );
+    }
 }

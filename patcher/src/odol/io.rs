@@ -72,7 +72,13 @@ impl<'a> Reader<'a> {
         usize::try_from(n).map_err(|_| self.err("negative ODOL array"))
     }
 
+    pub fn limit(&self, count: usize, elem: usize) -> Result<(), String> {
+        crate::bound::count_fits(self.data.len().saturating_sub(self.pos), count, elem)
+            .map_err(|e| self.err(&e))
+    }
+
     pub fn u32s(&mut self, n: usize) -> Result<Vec<u32>, String> {
+        self.limit(n, 4)?;
         let mut out = Vec::with_capacity(n);
         for _ in 0..n {
             out.push(self.u32()?);
@@ -81,6 +87,7 @@ impl<'a> Reader<'a> {
     }
 
     pub fn i32s(&mut self, n: usize) -> Result<Vec<i32>, String> {
+        self.limit(n, 4)?;
         let mut out = Vec::with_capacity(n);
         for _ in 0..n {
             out.push(self.i32()?);
@@ -104,6 +111,7 @@ impl<'a> Reader<'a> {
 
     pub fn strings(&mut self) -> Result<Vec<Vec<u8>>, String> {
         let n = self.count()?;
+        self.limit(n, 1)?;
         let mut out = Vec::with_capacity(n);
         for _ in 0..n {
             out.push(self.asciiz()?);
@@ -160,8 +168,12 @@ impl<'a> Reader<'a> {
         let count = self.count()?;
         let fill = self.u8()?;
         let raw = if fill != 0 {
+            let bytes = count
+                .checked_mul(elem)
+                .ok_or_else(|| self.err("ODOL array overflow"))?;
+            crate::bound::repeat_fits(bytes).map_err(|e| self.err(&e))?;
             let one = self.bytes(elem)?.to_vec();
-            let mut raw = Vec::with_capacity(count.saturating_mul(elem));
+            let mut raw = Vec::with_capacity(bytes);
             for _ in 0..count {
                 raw.extend_from_slice(&one);
             }
@@ -180,3 +192,7 @@ impl<'a> Reader<'a> {
         ))
     }
 }
+
+#[cfg(test)]
+#[path = "io_bounds.rs"]
+mod bounds;

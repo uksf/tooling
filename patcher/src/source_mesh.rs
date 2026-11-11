@@ -28,6 +28,9 @@ impl<'a> Reader<'a> {
     fn u32(&mut self) -> Result<usize, String> {
         Ok(u32::from_le_bytes(self.take(4)?.try_into().unwrap()) as usize)
     }
+    fn limit(&self, count: usize, elem: usize) -> Result<(), String> {
+        crate::bound::count_fits(self.data.len().saturating_sub(self.pos), count, elem)
+    }
     fn f32(&mut self) -> Result<f32, String> {
         Ok(f32::from_le_bytes(self.take(4)?.try_into().unwrap()))
     }
@@ -55,6 +58,7 @@ fn read(data: &[u8]) -> Result<(Vec<V>, Vec<Vec<usize>>), String> {
     let nn = r.u32()?;
     let nf = r.u32()?;
     r.u32()?;
+    r.limit(np, 16)?;
     let mut points = Vec::with_capacity(np);
     for _ in 0..np {
         let p = V(r.f32()?, r.f32()?, r.f32()?);
@@ -62,6 +66,7 @@ fn read(data: &[u8]) -> Result<(Vec<V>, Vec<Vec<usize>>), String> {
         points.push(p);
     }
     r.take(nn.checked_mul(12).ok_or("MLOD overflow")?)?;
+    r.limit(nf, 74)?;
     let mut faces = Vec::with_capacity(nf);
     for _ in 0..nf {
         let n = r.u32()?;
@@ -250,3 +255,7 @@ pub fn load(data: &[u8], op: &Value, frame: &Frame) -> Result<Mesh, String> {
         weld: welded,
     })
 }
+
+#[cfg(test)]
+#[path = "source_mesh_bounds.rs"]
+mod bounds;

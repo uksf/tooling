@@ -118,28 +118,29 @@ impl Animation {
 impl Animations {
     pub fn read(r: &mut Reader<'_>) -> Result<Self, String> {
         let class_count = r.count()?;
+        r.limit(class_count, 38)?;
         let mut classes = Vec::with_capacity(class_count);
         for _ in 0..class_count {
             classes.push(Animation::read(r)?);
         }
         let bone_count = r.count()?;
+        r.limit(bone_count, 4)?;
         let mut bones_to_anims = Vec::with_capacity(bone_count);
         for _ in 0..bone_count {
             let outer = r.count()?;
+            r.limit(outer, 4)?;
             let mut rows = Vec::with_capacity(outer);
             for _ in 0..outer {
                 let inner = r.count()?;
-                let mut values = Vec::with_capacity(inner);
-                for _ in 0..inner {
-                    values.push(r.u32()?);
-                }
-                rows.push(values);
+                rows.push(r.u32s(inner)?);
             }
             bones_to_anims.push(rows);
         }
+        r.limit(bone_count, classes.len().saturating_mul(4))?;
         let mut anims_to_bones = Vec::with_capacity(bone_count);
         let mut axes = Vec::with_capacity(bone_count);
         for _ in 0..bone_count {
+            r.limit(classes.len(), 4)?;
             let mut row = Vec::with_capacity(classes.len());
             let mut axis_row = Vec::with_capacity(classes.len());
             for class in &classes {

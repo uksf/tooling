@@ -94,6 +94,7 @@ impl Section {
             Vec::new()
         };
         let area_count = r.count()?;
+        r.limit(area_count, 4)?;
         let mut area_over_tex = Vec::with_capacity(area_count);
         for _ in 0..area_count {
             area_over_tex.push(r.f32()?);
@@ -188,6 +189,7 @@ impl Keyframe {
     pub fn read(r: &mut Reader<'_>) -> Result<Self, String> {
         let time = r.f32()?;
         let count = r.count()?;
+        r.limit(count, 12)?;
         let mut points = Vec::with_capacity(count);
         for _ in 0..count {
             points.push(r.vec3()?);
@@ -209,6 +211,7 @@ pub fn faces(r: &mut Reader<'_>) -> Result<(u32, u16, Vec<Vec<i32>>), String> {
     let count = r.count()?;
     let unused1 = r.u32()?;
     let unused2 = r.u16()?;
+    r.limit(count, 1)?;
     let mut faces = Vec::with_capacity(count);
     for _ in 0..count {
         let n = usize::from(r.u8()?);
@@ -219,6 +222,7 @@ pub fn faces(r: &mut Reader<'_>) -> Result<(u32, u16, Vec<Vec<i32>>), String> {
 
 pub fn materials(r: &mut Reader<'_>) -> Result<Vec<Material>, String> {
     let count = r.count()?;
+    r.limit(count, 121)?;
     let mut out = Vec::with_capacity(count);
     for _ in 0..count {
         out.push(Material::read(r)?);

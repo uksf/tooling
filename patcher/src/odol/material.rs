@@ -86,6 +86,20 @@ impl StageTransform {
     }
 }
 
+fn stage_bytes(version: u32) -> usize {
+    let mut n = 1;
+    if version >= 5 {
+        n += 4;
+    }
+    if version >= 8 {
+        n += 4;
+    }
+    if version >= 11 {
+        n += 1;
+    }
+    n
+}
+
 impl Material {
     pub fn read(r: &mut Reader<'_>) -> Result<Self, String> {
         let name = r.asciiz()?;
@@ -118,6 +132,13 @@ impl Material {
         } else {
             texture_count
         };
+        let tex_min = stage_bytes(version);
+        if version < 8 {
+            r.limit(texture_count, 52 + tex_min)?;
+        } else {
+            r.limit(texture_count, tex_min)?;
+            r.limit(transform_count, 52)?;
+        }
         let mut textures = Vec::with_capacity(texture_count);
         let mut transforms = Vec::with_capacity(transform_count);
         if version < 8 {

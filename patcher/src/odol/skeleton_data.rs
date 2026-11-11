@@ -27,6 +27,7 @@ impl Skeleton {
         }
         let discrete = r.u8()?;
         let count = r.count()?;
+        r.limit(count, 2)?;
         let mut bones = Vec::with_capacity(count);
         for _ in 0..count {
             bones.push(Bone {

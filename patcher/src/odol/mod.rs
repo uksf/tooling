@@ -90,9 +90,7 @@ impl Header {
         let muzzle_flash = tail[..len].to_vec();
         pos += len + 1;
         let count = word(bytes, &mut pos)? as usize;
-        if count > (bytes.len() - pos) / 4 {
-            return Err("truncated ODOL resolutions".into());
-        }
+        crate::bound::count_fits(bytes.len().saturating_sub(pos), count, 4)?;
         let mut resolutions = Vec::with_capacity(count);
         for _ in 0..count {
             resolutions.push(f32::from_bits(word(bytes, &mut pos)?));

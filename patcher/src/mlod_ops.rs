@@ -24,6 +24,9 @@ impl<'a> Reader<'a> {
         }
         Ok(n)
     }
+    fn limit(&self, count: usize, elem: usize) -> Result<(), String> {
+        crate::bound::count_fits(self.bytes.len().saturating_sub(self.pos), count, elem)
+    }
     fn string(&mut self) -> Result<&'a [u8], String> {
         let n = self
             .bytes
@@ -91,6 +94,7 @@ fn lod(
         .collect();
     r.take(nn.checked_mul(12).ok_or("MLOD overflow")?)?;
     let prefix_end = r.pos;
+    r.limit(nf, 74)?;
     let mut faces = Vec::with_capacity(nf);
     let mut counts = Vec::with_capacity(nf);
     let mut areas = Vec::with_capacity(nf);

@@ -2,6 +2,7 @@ pub mod anim_ops;
 mod axis_common;
 pub mod bind_ops;
 pub mod bone_ops;
+mod bound;
 pub mod component_ops;
 pub mod cut_seams;
 mod cylinder_uv;

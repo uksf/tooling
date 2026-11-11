@@ -59,6 +59,25 @@ fn rejects_truncated_pbo() {
 }
 
 #[test]
+fn compressed_entry_rejects_huge_original_size() {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"a.p3d\0");
+    bytes.extend_from_slice(&0x4370_7273u32.to_le_bytes());
+    bytes.extend_from_slice(&0xFFFF_FFF0u32.to_le_bytes());
+    bytes.extend_from_slice(&0u32.to_le_bytes());
+    bytes.extend_from_slice(&0u32.to_le_bytes());
+    bytes.extend_from_slice(&4u32.to_le_bytes());
+    bytes.extend_from_slice(&[0; 21]);
+    bytes.extend_from_slice(&[1, 2, 3, 4]);
+    bytes.extend_from_slice(&[0; 21]);
+    let pbo = Pbo::parse(bytes).unwrap();
+    assert_eq!(
+        pbo.data(0).unwrap_err(),
+        "declared size 4294967280 exceeds the 512 MiB cap"
+    );
+}
+
+#[test]
 fn compressed_entry_requires_valid_checksum() {
     let mut bytes = fixture();
     let original = Pbo::parse(bytes.clone()).unwrap();

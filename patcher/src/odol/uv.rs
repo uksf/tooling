@@ -87,7 +87,12 @@ fn coords(
             .0
             .first()
             .ok_or("UV default size mismatch")?;
-        return Ok(vec![one(chunk); vertices as usize]);
+        let n = vertices as usize;
+        let bytes = n
+            .checked_mul(size_of::<[f32; 2]>())
+            .ok_or("UV repeat overflow")?;
+        crate::bound::repeat_fits(bytes)?;
+        return Ok(vec![one(chunk); n]);
     }
     Ok(source.as_chunks::<4>().0.iter().map(one).collect())
 }

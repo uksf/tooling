@@ -92,6 +92,7 @@ impl Loadable {
 impl Lod {
     pub fn read(r: &mut Reader<'_>, resolution: f32) -> Result<Self, String> {
         let proxy_count = r.count()?;
+        r.limit(proxy_count, 65)?;
         let mut proxies = Vec::with_capacity(proxy_count);
         for _ in 0..proxy_count {
             proxies.push(Proxy::read(r)?);
@@ -99,6 +100,7 @@ impl Lod {
         let sub_count = r.count()?;
         let sub_to_skeleton = r.i32s(sub_count)?;
         let map_count = r.count()?;
+        r.limit(map_count, 4)?;
         let mut skeleton_to_sub = Vec::with_capacity(map_count);
         for _ in 0..map_count {
             let n = r.count()?;
@@ -118,21 +120,25 @@ impl Lod {
         let (vertex_to_point_origin, vertex_raw) = r.packed_array(4)?;
         let (face_bytes, face_flags, faces) = mesh::faces(r)?;
         let section_count = r.count()?;
+        r.limit(section_count, 38)?;
         let mut sections = Vec::with_capacity(section_count);
         for _ in 0..section_count {
             sections.push(Section::read(r)?);
         }
         let selection_count = r.count()?;
+        r.limit(selection_count, 5)?;
         let mut selections = Vec::with_capacity(selection_count);
         for _ in 0..selection_count {
             selections.push(Selection::read(r)?);
         }
         let property_count = r.count()?;
+        r.limit(property_count, 2)?;
         let mut properties = Vec::with_capacity(property_count);
         for _ in 0..property_count {
             properties.push((r.asciiz()?, r.asciiz()?));
         }
         let frame_count = r.count()?;
+        r.limit(frame_count, 8)?;
         let mut frames = Vec::with_capacity(frame_count);
         for _ in 0..frame_count {
             frames.push(Keyframe::read(r)?);
@@ -145,6 +151,7 @@ impl Lod {
         let (clip_origin, clip_raw) = r.condensed(4)?;
         let uv0 = UvSet::read(r)?;
         let uv_count = r.u32()?;
+        r.limit((uv_count as usize).saturating_sub(1), 21)?;
         let mut uv = vec![uv0];
         for _ in 1..uv_count.max(1) {
             uv.push(UvSet::read(r)?);
