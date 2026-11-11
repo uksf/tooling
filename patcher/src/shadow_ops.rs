@@ -12,9 +12,6 @@ fn key(p: [f32; 3]) -> [u32; 3] {
 fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
     let from = axis_common::lod_index(model, axis_common::string(op, "from")?)?;
     let to = axis_common::lod_index(model, axis_common::string(op, "lod")?)?;
-    if from == to {
-        return Err("source and volume must differ".into());
-    }
     let source = &model.lods[from];
     let volume = &model.lods[to];
     let problem = if volume.faces.is_empty() {
@@ -85,7 +82,10 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
                 let b = key(source.vertices[origin[c[k]]]);
                 if let Some(twins) = edges.get(&(a, b)) {
                     if twins.len() > 1 {
-                        return Err("non-manifold edge".into());
+                        return Err(format!(
+                            "non-manifold edge at {}",
+                            crate::dotnet_fmt::vector3(source.vertices[origin[c[k]]])
+                        ));
                     }
                     let (tf, tk) = twins[0];
                     faces.push(vec![
@@ -98,7 +98,11 @@ fn edit(model: &mut Model, op: &Value) -> Result<(), String> {
         }
         new_ranges.push((start, faces.len()));
     }
-    let (source, volume) = if from < to {
+    let snapshot;
+    let (source, volume) = if from == to {
+        snapshot = model.lods[from].duplicate(model.lods[from].resolution)?;
+        (&snapshot, &mut model.lods[to])
+    } else if from < to {
         let (a, b) = model.lods.split_at_mut(to);
         (&a[from], &mut b[0])
     } else {

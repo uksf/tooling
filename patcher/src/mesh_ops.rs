@@ -172,8 +172,6 @@ fn edit(model: &mut Model, op: &Value, base: &Path) -> Result<(), String> {
     let frame = Frame::from(op)?;
     let mesh = source_mesh::load(&data, op, &frame)?;
     let band = op.get("uvFrom").ok_or("missing uvFrom")?;
-    let bone = axis_common::string(op, "bone")?;
-    let bound_op = serde_json::json!({"bones":[bone]});
     for name in op
         .get("lods")
         .and_then(Value::as_array)
@@ -181,6 +179,7 @@ fn edit(model: &mut Model, op: &Value, base: &Path) -> Result<(), String> {
     {
         let name = name.as_str().ok_or("invalid lod")?;
         let index = axis_common::lod_index(model, name)?;
+        let bound_op = serde_json::json!({"bones":[axis_common::string(op, "bone")?]});
         let bound = axis_common::bound(model, &model.lods[index], &bound_op)?;
         let faces = band_faces(&model.lods[index], &frame, &bound, band)?;
         if faces.is_empty() {

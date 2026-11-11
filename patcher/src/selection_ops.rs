@@ -161,17 +161,18 @@ pub fn move_sections(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, St
         let new_selection = string(op, "newSelection")?;
         let from = strings(op, "from")?;
         let lod = &mut model.lods[li];
-        let secs: Vec<i32> = (0..lod.sections.len())
-            .filter(|&s| {
-                let t = lod.sections[s].texture;
-                t >= 0
-                    && lod
-                        .textures
-                        .get(t as usize)
-                        .is_some_and(|n| same(n, texture))
-            })
-            .map(|s| s as i32)
-            .collect();
+        let mut secs = Vec::new();
+        for (s, section) in lod.sections.iter().enumerate() {
+            let t = section.texture;
+            if t >= 0 {
+                let name = lod.textures.get(t as usize).ok_or_else(|| {
+                    format!("section {s} references texture {t}, outside the LOD")
+                })?;
+                if same(name, texture) {
+                    secs.push(s as i32);
+                }
+            }
+        }
         if secs.is_empty() {
             return Err(format!("LOD has no sections using '{texture}'"));
         }

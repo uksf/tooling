@@ -210,3 +210,27 @@ fn remap_proxies_names_selections_like_dotnet_000() {
         assert_eq!(selection.name, format!("proxy:new.{name}").as_bytes());
     }
 }
+
+#[test]
+fn rebuild_shadow_volume_from_itself_matches_csharp() {
+    for (from, lod, sha) in [
+        (
+            "11002",
+            "11002",
+            "96d7f9e42128311d522bdac06d62228348e9c49edaf04145c9a2052a0e5d74a9",
+        ),
+        (
+            "11002",
+            "1.1002e4",
+            "96d7f9e42128311d522bdac06d62228348e9c49edaf04145c9a2052a0e5d74a9",
+        ),
+        (
+            "11002",
+            "10002",
+            "5adf415c14050b6ac5b3a50e61a0d2d2a8efb9b9b164959b8a3d9374fbc83fe8",
+        ),
+    ] {
+        let out = shadow_ops::rebuild(ROUND, &json!({"from":from,"lod":lod}), "t").unwrap();
+        assert_eq!(crate::state::sha256(&out), sha, "{from} {lod}");
+    }
+}

@@ -69,6 +69,7 @@ fn restore(model: &mut Model, op: &Value) -> Result<(), String> {
         if missing.is_empty() {
             return Err(format!("LOD {name} already has every matching proxy"));
         }
+        let existing = model.lods[dest].proxies.len();
         for source in missing {
             let wanted = [
                 &b"proxy:"[..],
@@ -86,30 +87,26 @@ fn restore(model: &mut Model, op: &Value) -> Result<(), String> {
                         crate::op_json::text(&wanted)
                     )
                 })?;
-            let section = if let Some(sibling) = model.lods[dest]
-                .proxies
+            let section = if let Some(sibling) = model.lods[dest].proxies[..existing]
                 .iter()
                 .find(|p| same(&p.model, &source.model))
             {
                 sibling.section
             } else {
                 let target_texture = texture(&model.lods[from], source.section)?;
-                model.lods[dest]
-                    .sections
-                    .iter()
-                    .enumerate()
-                    .find_map(|(i, _)| {
-                        texture(&model.lods[dest], i as i32)
-                            .ok()
-                            .filter(|t| same(t, target_texture))
-                            .map(|_| i as i32)
-                    })
-                    .ok_or_else(|| {
-                        format!(
-                            "LOD {name} has no section textured '{}'",
-                            String::from_utf8_lossy(target_texture)
-                        )
-                    })?
+                let mut found = None;
+                for i in 0..model.lods[dest].sections.len() as i32 {
+                    if same(texture(&model.lods[dest], i)?, target_texture) {
+                        found = Some(i);
+                        break;
+                    }
+                }
+                found.ok_or_else(|| {
+                    format!(
+                        "LOD {name} has no section textured '{}'",
+                        String::from_utf8_lossy(target_texture)
+                    )
+                })?
             };
             let mut proxy = source.clone();
             proxy.selection = i32::try_from(selection).map_err(|_| "selection index overflow")?;
