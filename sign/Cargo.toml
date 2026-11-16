@@ -8,5 +8,9 @@ description = "Create Arma 3 signing keys and sign or verify PBOs, byte-compatib
 
 [dependencies]
 hemtt-common.workspace = true
-hemtt-pbo.workspace = true
 hemtt-signing.workspace = true
+rsa = "0.10.0-rc.8"
+sha-1 = "0.10.1"
+
+[dev-dependencies]
+hemtt-pbo.workspace = true

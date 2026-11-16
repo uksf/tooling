@@ -6,8 +6,12 @@ use std::{
 };
 
 use hemtt_common::BISignVersion;
-use hemtt_pbo::ReadablePbo;
 use hemtt_signing::{BIPrivateKey, BIPublicKey, BISign};
+use pbo::dssign_hashes;
+use signature::SigningKey;
+
+mod pbo;
+mod signature;
 
 const USAGE: &str = "usage:
   uksf-sign create-key <name>                     writes <name>.biprivatekey and <name>.bikey to the current folder
@@ -46,15 +50,12 @@ fn create_key(name: &str) -> Result<(), String> {
 }
 
 fn sign(key_path: &str, pbos: &[String]) -> Result<(), String> {
-    let key = BIPrivateKey::read(&mut open(key_path)?).map_err(|e| format!("{key_path}: {e}"))?;
+    let bytes = std::fs::read(key_path).map_err(|e| format!("{key_path}: {e}"))?;
+    let key = SigningKey::read(&bytes).map_err(|e| format!("{key_path}: {e}"))?;
     for pbo_path in pbos {
-        let mut pbo = read_pbo(pbo_path)?;
-        let signature = key
-            .sign(&mut pbo, BISignVersion::V3)
-            .map_err(|e| format!("{pbo_path}: {e}"))?;
+        let hashes = dssign_hashes(pbo_path, BISignVersion::V3)?;
         let output = signature_path(pbo_path, key.authority())?;
-        signature
-            .write(&mut create(&output.to_string_lossy())?)
+        key.write_signature(&mut create(&output.to_string_lossy())?, &hashes)
             .map_err(|e| format!("{}: {e}", output.display()))?;
     }
     Ok(())
@@ -63,7 +64,6 @@ fn sign(key_path: &str, pbos: &[String]) -> Result<(), String> {
 fn verify(key_path: &str, pbos: &[String]) -> Result<(), String> {
     let key = BIPublicKey::read(&mut open(key_path)?).map_err(|e| format!("{key_path}: {e}"))?;
     for pbo_path in pbos {
-        let mut pbo = read_pbo(pbo_path)?;
         let path = signature_path(pbo_path, key.authority())?;
         let signature = BISign::read(&mut open(&path.to_string_lossy())?)
             .map_err(|e| format!("{}: {e}", path.display()))?;
@@ -77,8 +77,9 @@ fn verify(key_path: &str, pbos: &[String]) -> Result<(), String> {
                 key.authority()
             ));
         }
-        key.verify(&mut pbo, &signature)
-            .map_err(|e| format!("{pbo_path}: {e}"))?;
+        if !signature::matches(&signature, &dssign_hashes(pbo_path, signature.version())?) {
+            return Err(format!("{pbo_path}: signature does not match the PBO"));
+        }
     }
     Ok(())
 }
@@ -89,10 +90,6 @@ fn signature_path(pbo_path: &str, authority: &str) -> Result<PathBuf, String> {
         .and_then(|x| x.to_str())
         .ok_or(format!("{pbo_path}: not a file name"))?;
     Ok(Path::new(pbo_path).with_file_name(format!("{name}.{authority}.bisign")))
-}
-
-fn read_pbo(path: &str) -> Result<ReadablePbo<File>, String> {
-    ReadablePbo::from(open(path)?).map_err(|e| format!("{path}: {e}"))
 }
 
 fn open(path: &str) -> Result<File, String> {

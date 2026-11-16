@@ -1112,6 +1112,8 @@ dependencies = [
  "hemtt-common",
  "hemtt-pbo",
  "hemtt-signing",
+ "rsa",
+ "sha-1",
 ]
 
 [[package]]
