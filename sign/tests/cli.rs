@@ -5,7 +5,11 @@ use std::{
 };
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
-const PBOS: [&str; 2] = ["sign_fixture.pbo", "uksf_test_typhoon_hook.pbo"];
+const PBOS: [&str; 3] = [
+    "sign_fixture.pbo",
+    "uksf_test_typhoon_hook.pbo",
+    "dssign_fixture.pbo",
+];
 
 fn scratch(test: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("uksf-sign-{test}-{}", std::process::id()));
@@ -30,7 +34,10 @@ fn sign_matches_dssignfile_byte_for_byte() {
     let dir = scratch("golden");
     let key = Path::new(FIXTURES).join("uksf_sign_test.biprivatekey");
 
-    let output = run(&dir, &["sign", key.to_str().unwrap(), PBOS[0], PBOS[1]]);
+    let output = run(
+        &dir,
+        &[["sign", key.to_str().unwrap()].as_slice(), &PBOS].concat(),
+    );
 
     assert!(output.status.success(), "{output:?}");
     for pbo in PBOS {
@@ -49,10 +56,29 @@ fn verify_accepts_dssignfile_signatures() {
 
     let output = run(
         Path::new(FIXTURES),
-        &["verify", key.to_str().unwrap(), PBOS[0], PBOS[1]],
+        &[["verify", key.to_str().unwrap()].as_slice(), &PBOS].concat(),
     );
 
     assert!(output.status.success(), "{output:?}");
+}
+
+#[test]
+fn sign_rejects_data_after_the_checksum() {
+    let dir = scratch("trailing");
+    let key = Path::new(FIXTURES).join("uksf_sign_test.biprivatekey");
+    let path = dir.join(PBOS[2]);
+    let mut bytes = fs::read(&path).unwrap();
+    bytes.push(0);
+    fs::write(&path, bytes).unwrap();
+
+    let output = run(&dir, &["sign", key.to_str().unwrap(), PBOS[2]]);
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("20 byte checksum"));
+    assert!(
+        !dir.join(format!("{}.uksf_sign_test.bisign", PBOS[2]))
+            .exists()
+    );
 }
 
 #[test]
