@@ -2,7 +2,7 @@ use crate::{
     engine,
     manifest::Manifest,
     pbo::Pbo,
-    state::{State, Store, atomic_write, sha256},
+    state::{State, Store, atomic_write, existing_case, sha256},
 };
 use std::{
     fs,
@@ -107,7 +107,7 @@ impl Runner {
             pending_patched_sha: Some(patched_sha.clone()),
         };
         self.store.save(&pending, &pristine)?;
-        atomic_write(&self.addons.join(&m.pbo), &patched)?;
+        atomic_write(&self.pbo_path(&m.pbo), &patched)?;
         self.store.save_state(&pending.settled(&patched_sha))?;
         println!("{}: patched ({reason}) -> {patched_sha}", m.pbo);
         Ok(())
@@ -136,7 +136,7 @@ impl Runner {
                     } else {
                         "upstream PBO changed"
                     },
-                    self.addons.join(&m.pbo).display().to_string(),
+                    self.pbo_path(&m.pbo).display().to_string(),
                 )
             };
         let actual = sha256(&pristine);
@@ -171,7 +171,7 @@ impl Runner {
         Ok(pbo.bytes)
     }
     fn restore_orphan(&self, state: &State, dry: bool) -> Result<(), String> {
-        let path = self.addons.join(&state.pbo);
+        let path = self.pbo_path(&state.pbo);
         let sha = fs::read(&path).ok().map(|b| sha256(&b));
         if sha.as_deref() == Some(&state.pristine_sha) {
             println!(
@@ -204,8 +204,11 @@ impl Runner {
         }
         Ok(())
     }
+    fn pbo_path(&self, pbo: &str) -> PathBuf {
+        existing_case(&self.addons, pbo)
+    }
     fn read_pbo(&self, pbo: &str) -> Result<Vec<u8>, String> {
-        fs::read(self.addons.join(pbo))
+        fs::read(self.pbo_path(pbo))
             .map_err(|_| format!("{pbo} is not in {}", self.addons.display()))
     }
 }

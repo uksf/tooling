@@ -80,6 +80,49 @@ fn text(output: &[u8]) -> String {
     String::from_utf8_lossy(output).into_owned()
 }
 
+fn rename_case_only(from: PathBuf, to: PathBuf) {
+    let temp = to.with_extension("case-tmp");
+    fs::rename(from, &temp).unwrap();
+    fs::rename(temp, to).unwrap();
+}
+
+#[test]
+fn mixed_case_manifest_and_state_find_lowercased_pbo() {
+    let b = Sandbox::new();
+    rename_case_only(
+        b.root.join("mod/addons/x.pbo"),
+        b.root.join("mod/addons/X.pbo"),
+    );
+    let write = |replacement: &str| {
+        let value = serde_json::json!({"format":1,"pbo":"X.pbo","pristineSha256":hash(&b.pristine),"assets":[{"path":"a.txt","sha256":hash(b"abc"),"ops":[{"op":"text-replace","find":"abc","replace":replacement}]}]});
+        fs::write(
+            b.root.join("patches/x.json"),
+            serde_json::to_vec(&value).unwrap(),
+        )
+        .unwrap();
+    };
+    write("first");
+    assert!(b.run("apply").status.success());
+    rename_case_only(
+        b.root.join("mod/addons/X.pbo"),
+        b.root.join("mod/addons/x.pbo"),
+    );
+    let up_to_date = b.run("apply");
+    assert!(up_to_date.status.success(), "{}", text(&up_to_date.stderr));
+    assert_eq!(text(&up_to_date.stdout).trim(), "X.pbo: up to date");
+    write("second");
+    let changed = b.run("apply");
+    assert!(changed.status.success(), "{}", text(&changed.stderr));
+    assert!(text(&changed.stdout).contains("patch set changed"));
+    assert!(b.run("verify").status.success());
+    assert!(String::from_utf8_lossy(&b.pbo()).contains("second"));
+    let names: Vec<String> = fs::read_dir(b.root.join("mod/addons"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(names, ["x.pbo"]);
+}
+
 #[test]
 fn interrupted_pending_install_commits_only_installed_output() {
     let b = Sandbox::new();
