@@ -39,6 +39,18 @@ impl State {
     }
 }
 
+pub fn existing_case(dir: &Path, name: &str) -> PathBuf {
+    let lower = name.to_lowercase();
+    fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|found| found.to_lowercase() == lower)
+        .min_by_key(|found| found != name)
+        .map_or_else(|| dir.join(name), |found| dir.join(found))
+}
+
 pub fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -113,10 +125,10 @@ impl Store {
         })
     }
     pub fn state_path(&self, pbo: &str) -> PathBuf {
-        self.dir.join(format!("{pbo}.state.json"))
+        existing_case(&self.dir, &format!("{pbo}.state.json"))
     }
     pub fn backup_path(&self, pbo: &str) -> PathBuf {
-        self.dir.join(format!("{pbo}.pristine"))
+        existing_case(&self.dir, &format!("{pbo}.pristine"))
     }
     pub fn load(&self, pbo: &str) -> Result<Option<State>, String> {
         let path = self.state_path(pbo);
