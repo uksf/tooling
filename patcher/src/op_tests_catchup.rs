@@ -1,6 +1,6 @@
 use crate::{
     add_points_ops::add_points,
-    anim_edit_ops::{add_hide, move_rotation_axis, set_rotation_range},
+    anim_edit_ops::{add_hide, move_rotation_axis, set_rotation_origin, set_rotation_range},
     odol::Model,
     point_ops::{add_selection_points, isolate_memory_selection},
 };
@@ -102,6 +102,30 @@ fn move_rotation_axis_moves_every_stored_origin_and_both_memory_points() {
     let missing = json!({"animation":"missing","selection":"drivewheel_axis","offset":[0,0,0]});
     assert_eq!(
         move_rotation_axis(RHICC, &missing, "t").unwrap_err(),
+        "t: expected one rotation animation 'missing'"
+    );
+}
+
+#[test]
+fn set_rotation_origin_sets_every_stored_origin_and_leaves_memory_points() {
+    let op = json!({"animation":"drivingwheel","position":[0.5,-0.25,1.5]});
+    let m = apply(set_rotation_origin, op);
+    let before = Model::parse(RHICC).unwrap();
+    let (old, new) = (
+        before.animations.as_ref().unwrap(),
+        m.animations.as_ref().unwrap(),
+    );
+    for (a, b) in old.axes.iter().zip(&new.axes) {
+        if let (Some(a), Some(b)) = (a[26], b[26]) {
+            assert_eq!(b[0], [0.5, -0.25, 1.5]);
+            assert_eq!(b[1], a[1]);
+        }
+    }
+    assert_eq!(new.axes[0][26].unwrap()[0], [0.5, -0.25, 1.5]);
+    assert_eq!(m.lods[0].vertices, before.lods[0].vertices);
+    let missing = json!({"animation":"missing","position":[0,0,0]});
+    assert_eq!(
+        set_rotation_origin(RHICC, &missing, "t").unwrap_err(),
         "t: expected one rotation animation 'missing'"
     );
 }
