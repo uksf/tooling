@@ -111,7 +111,11 @@ pub fn set_rotation_origin(data: &[u8], op: &Value, label: &str) -> Result<Vec<u
         let index = rotation(model, name)?;
         let animations = model.animations.as_mut().ok_or("no animations")?;
         let mut stored = 0;
-        for axis in animations.axes.iter_mut().filter_map(|g| g.get_mut(index)?.as_mut()) {
+        for axis in animations
+            .axes
+            .iter_mut()
+            .filter_map(|g| g.get_mut(index)?.as_mut())
+        {
             axis[0] = [position[0], position[1], position[2]];
             stored += 1;
         }
