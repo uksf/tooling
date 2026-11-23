@@ -104,25 +104,30 @@ pub fn set_rotation_range(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8
     })
 }
 
+pub fn set_rotation_origin(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String> {
+    edit(data, label, false, |model| {
+        let name = string(op, "animation")?;
+        let position = floats(op, "position", 3)?;
+        let index = rotation(model, name)?;
+        let animations = model.animations.as_mut().ok_or("no animations")?;
+        let mut stored = 0;
+        for axis in animations.axes.iter_mut().filter_map(|g| g.get_mut(index)?.as_mut()) {
+            axis[0] = [position[0], position[1], position[2]];
+            stored += 1;
+        }
+        if stored == 0 {
+            return Err(format!("'{name}' has no stored axis"));
+        }
+        Ok(())
+    })
+}
+
 pub fn move_rotation_axis(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String> {
     edit(data, label, false, |model| {
         let name = string(op, "animation")?;
         let selection_name = string(op, "selection")?;
         let offset = floats(op, "offset", 3)?;
-        if model.animations.is_none() {
-            return Err("no animations".into());
-        }
-        let matches: Vec<usize> = model
-            .animations
-            .iter()
-            .flat_map(|a| a.classes.iter().enumerate())
-            .filter(|(_, a)| same(&a.name, name) && a.kind <= 3)
-            .map(|(i, _)| i)
-            .collect();
-        let [index] = matches.as_slice() else {
-            return Err(format!("expected one rotation animation '{name}'"));
-        };
-        let index = *index;
+        let index = rotation(model, name)?;
         let memory = lod_index(model, "memory")?;
         let memory = &mut model.lods[memory];
         let s = selection(memory, selection_name)?;
