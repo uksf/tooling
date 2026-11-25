@@ -1,4 +1,8 @@
-use crate::{odol::Model, op_tests_mesh::rigged, uv_ops::offset_uv};
+use crate::{
+    odol::{Model, lod_edit},
+    op_tests_mesh::rigged,
+    uv_ops::offset_uv,
+};
 use serde_json::json;
 
 fn uv(bytes: &[u8]) -> Vec<[f32; 2]> {
@@ -25,6 +29,17 @@ fn offset_uv_moves_only_the_vertices_weighted_to_the_bone() {
             );
         }
     }
+}
+
+#[test]
+fn offset_uv_rewrites_the_lod_rest_size() {
+    let mut m = Model::parse(&rigged(1)).unwrap();
+    m.lods[0].rest_size += 1000;
+    let op = json!({"op":"offset-uv","lod":"0","bone":"b","offset":[0.25,-0.125]});
+    let mut after = Model::parse(&offset_uv(&m.write().unwrap(), &op, "t").unwrap()).unwrap();
+    let written = after.lods[0].rest_size;
+    lod_edit::refresh_rest(&mut after.lods[0]).unwrap();
+    assert_eq!(written, after.lods[0].rest_size);
 }
 
 #[test]

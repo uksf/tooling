@@ -55,6 +55,7 @@ pub fn offset_uv(data: &[u8], op: &Value, label: &str) -> Result<Vec<u8>, String
             p[1] += offset[1];
         }
         lod_edit::write_uv(set, &uv)?;
-        lod_edit::reload_uv(set)
+        lod_edit::reload_uv(set)?;
+        lod_edit::refresh_rest(lod)
     })
 }
