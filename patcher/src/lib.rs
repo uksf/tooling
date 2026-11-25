@@ -36,12 +36,14 @@ pub mod selection_ops;
 pub mod shadow_ops;
 pub mod skeleton;
 mod source_mesh;
+pub mod uv_ops;
 mod uv_plan;
 pub mod uv_split;
 
 #[cfg(test)]
 mod convex_cache_tests;
 pub mod engine;
+pub mod engine_ops;
 pub mod manifest;
 pub mod memory_ops;
 pub mod mlod_ops;
@@ -67,6 +69,8 @@ mod op_tests_r3;
 mod op_tests_refs;
 #[cfg(test)]
 mod op_tests_strip;
+#[cfg(test)]
+mod op_tests_uv;
 pub mod p3d_info;
 pub mod point_ops;
 pub mod proxy_ops;
